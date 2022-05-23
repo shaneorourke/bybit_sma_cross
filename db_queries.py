@@ -12,7 +12,7 @@ def sql_out_replace(input,is_string:bool):
     else:
         for rep in replace_is_int:
             input = str(input).replace(rep,'')
-        return int(input)
+        return float(input)
         
 
 PNL = """select case when sum(closed_pnl) is null then 0 else sum(closed_pnl) end as PNL from Profit_Loss where created_at >= (select min(market_date) from Logs);"""
