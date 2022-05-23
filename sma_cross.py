@@ -92,19 +92,8 @@ def get_last_cross():
     last_cross = str(cur.fetchone()[2]).replace('(','').replace(')','').replace(',','')
     return last_cross
 
-while True:
-    trading_symbol = "SOLUSDT"
-    candles = get_bybit_bars(trading_symbol,'15',today)
-    candles.to_sql(con=conn,name='Candles',if_exists='replace')
-    most_recent = candles.iloc[-1]
-    close_price = most_recent.close
-    fast_sma = most_recent.FastSMA
-    slow_sma = most_recent.SlowSMA
-    get_quantity(close_price)
-
-    orders = pd.DataFrame(session.get_active_order(symbol=trading_symbol)['result']['data'])
-    orders.to_sql(con=conn,name='Orders',if_exists='replace')
-    if orders.iloc[-1].order_status == 'Filled': #If the last order is filled, e.g. not open else wait for tp and sl
+def strategy(fast_sma,slow_sma,trading_symbol,close_price):
+    
         if float(fast_sma) > float(slow_sma):
             cross = 'up'
         if float(slow_sma) > float(fast_sma):
@@ -151,5 +140,18 @@ while True:
                                     take_profit=take_profit_var,
                                     stop_loss=stop_loss_var)
         insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,buy_sell,buy_price,sell_price)
-        print(read_last_log())
-    sleep(60)
+
+if __name__ == '__main__':
+    trading_symbol = "SOLUSDT"
+    candles = get_bybit_bars(trading_symbol,'15',today)
+    candles.to_sql(con=conn,name='Candles',if_exists='replace')
+    most_recent = candles.iloc[-1]
+    close_price = most_recent.close
+    fast_sma = most_recent.FastSMA
+    slow_sma = most_recent.SlowSMA
+    get_quantity(close_price)
+
+    orders = pd.DataFrame(session.get_active_order(symbol=trading_symbol)['result']['data'])
+    orders.to_sql(con=conn,name='Orders',if_exists='replace')
+    if orders.iloc[-1].order_status == 'Filled': #If the last order is filled, e.g. not open else wait for tp and sl
+        strategy(fast_sma,slow_sma,trading_symbol,close_price)
