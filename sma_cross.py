@@ -149,7 +149,6 @@ if __name__ == '__main__':
     close_price = most_recent.close
     fast_sma = most_recent.FastSMA
     slow_sma = most_recent.SlowSMA
-    get_quantity(close_price)
 
     orders = pd.DataFrame(session.get_active_order(symbol=trading_symbol)['result']['data'])
     orders.to_sql(con=conn,name='Orders',if_exists='replace')
