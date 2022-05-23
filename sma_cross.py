@@ -107,8 +107,8 @@ def strategy(fast_sma,slow_sma,trading_symbol,close_price):
         last_cross = get_last_cross()
         
         if last_cross == 'down' and cross == 'up':
-            print('SHORT')
-            buy_sell = 'SHORT'
+            print('LONG')
+            buy_sell = 'LONG'
             buy_price = close_price
             take_profit_var = round(buy_price+(buy_price * 0.01),3) #1%
             stop_loss_var = round(buy_price-(buy_price * 0.015),3) #-1.5%
@@ -124,8 +124,8 @@ def strategy(fast_sma,slow_sma,trading_symbol,close_price):
                                     take_profit=take_profit_var,
                                     stop_loss=stop_loss_var)
         if last_cross == 'up' and cross == 'down':
-            print('LONG')
-            buy_sell == 'LONG'
+            print('SHORT')
+            buy_sell == 'SHORT'
             buy_price = close_price
             take_profit_var = round(buy_price-(buy_price * 0.01),3) #1%
             stop_loss_var = round(buy_price+(buy_price * 0.015),3) #-1.5%
