@@ -2,14 +2,14 @@ import pandas as pd
 from pybit.usdt_perpetual import HTTP
 import secrets as sc
 import datetime as dt
-from datetime import timedelta
 import sqlite3 as sql
 from time import sleep
+
 from pytz import HOUR
 
 conn = sql.connect('bybit_sma')
 cur = conn.cursor()
-cur.execute('CREATE TABLE IF NOT EXISTS Logs (id integer PRIMARY KEY AUTOINCREMENT, symbol text, close decimal, fast_sma decimal, slow_sma decimal, cross text, buy_sell text, buy_price decimal, sell_price decimal, market_date timestamp DEFAULT current_timestamp)')
+cur.execute('CREATE TABLE IF NOT EXISTS Logs (id integer PRIMARY KEY AUTOINCREMENT, symbol text, close decimal, fast_sma decimal, slow_sma decimal, cross text, last_cross text, buy_sell text, buy_price decimal, sell_price decimal, market_date timestamp DEFAULT current_timestamp)')
 cur.execute('INSERT OR REPLACE INTO Logs (id,symbol,close,fast_sma,slow_sma,cross) VALUES (1,NULL,0,0,0,"wait")')
 conn.commit()
 session = HTTP("https://api.bybit.com",
@@ -22,7 +22,7 @@ except Exception as e:
 now = dt.datetime.now()
 now = now + dt.timedelta(days=-1)
 today = dt.datetime(now.year, now.month, now.day)
-print(today)
+
 def applytechnicals(df):
     df['FastSMA'] = df.close.rolling(7).mean()
     df['SlowSMA'] = df.close.rolling(25).mean()
@@ -37,15 +37,15 @@ def get_bybit_bars(trading_symbol, interval, startTime):
     applytechnicals(df)
     return df
 
-def insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,buy_sell,buy_price,sell_price):
+def insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price):
     if str(buy_sell).upper() not in ('LONG','SHORT'):
         buy_sell == None
-    insert_query = f'INSERT INTO Logs (symbol,close,fast_sma,slow_sma,cross,buy_sell,buy_price,sell_price) VALUES ("{trading_symbol}",{close_price},{fast_sma},{slow_sma},"{cross}","{buy_sell}",{buy_price},{sell_price})'
+    insert_query = f'INSERT INTO Logs (symbol,close,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price) VALUES ("{trading_symbol}",{close_price},{fast_sma},{slow_sma},"{cross}","{last_cross}","{buy_sell}",{buy_price},{sell_price})'
     cur.execute(insert_query)
     conn.commit()
 
 def read_last_log():
-    query = 'SELECT id,symbol,close,fast_sma,slow_sma,cross,market_date,buy_sell,buy_price,sell_price FROM logs ORDER BY id DESC LIMIT 1 '
+    query = 'SELECT id,symbol,close,fast_sma,slow_sma,cross,last_cross,market_date,buy_sell,buy_price,sell_price FROM logs ORDER BY id DESC LIMIT 1 '
     cur.execute(query)
     output = cur.fetchone()
     id = output[0]
@@ -54,11 +54,12 @@ def read_last_log():
     fast_sma = output[3]
     slow_sma = output[4]
     cross = output[5]
-    market_date = output[6]
-    buy_sell = output[7]
-    buy_price = output[8]
-    sell_price = output[9]
-    return id,symbol,close,fast_sma,slow_sma,cross,market_date,buy_sell,buy_price,sell_price
+    last_cross = output[6]
+    market_date = output[7]
+    buy_sell = output[8]
+    buy_price = output[9]
+    sell_price = output[10]
+    return id,symbol,close,fast_sma,slow_sma,cross,last_cross,market_date,buy_sell,buy_price,sell_price
 
 def get_quantity(close_price):
     funds = pd.DataFrame(session.get_wallet_balance()['result'])
@@ -108,8 +109,8 @@ def strategy(fast_sma,slow_sma,trading_symbol,close_price):
         last_cross = get_last_cross()
         
         if last_cross == 'down' and cross == 'up':
-            print('SHORT')
-            buy_sell = 'SHORT'
+            print('LONG')
+            buy_sell = 'LONG'
             buy_price = close_price
             take_profit_var = round(buy_price+(buy_price * 0.01),3) #1%
             stop_loss_var = round(buy_price-(buy_price * 0.015),3) #-1.5%
@@ -125,8 +126,8 @@ def strategy(fast_sma,slow_sma,trading_symbol,close_price):
                                     take_profit=take_profit_var,
                                     stop_loss=stop_loss_var)
         if last_cross == 'up' and cross == 'down':
-            print('LONG')
-            buy_sell == 'LONG'
+            print('SHORT')
+            buy_sell == 'SHORT'
             buy_price = close_price
             take_profit_var = round(buy_price-(buy_price * 0.01),3) #1%
             stop_loss_var = round(buy_price+(buy_price * 0.015),3) #-1.5%
@@ -140,7 +141,7 @@ def strategy(fast_sma,slow_sma,trading_symbol,close_price):
                                     close_on_trigger=False,
                                     take_profit=take_profit_var,
                                     stop_loss=stop_loss_var)
-        insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,buy_sell,buy_price,sell_price)
+        insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price)
 
 if __name__ == '__main__':
     while True:
@@ -151,13 +152,12 @@ if __name__ == '__main__':
         close_price = most_recent.close
         fast_sma = most_recent.FastSMA
         slow_sma = most_recent.SlowSMA
-        get_quantity(close_price)
 
         orders = pd.DataFrame(session.get_active_order(symbol=trading_symbol)['result']['data'])
         orders.to_sql(con=conn,name='Orders',if_exists='replace')
         if orders.iloc[-1].order_status == 'Filled': #If the last order is filled, e.g. not open else wait for tp and sl
             strategy(fast_sma,slow_sma,trading_symbol,close_price)
-        
+
         PandL =  pd.DataFrame(session.closed_profit_and_loss(symbol=trading_symbol)['result']['data'])
         PandL.created_at = pd.to_datetime(PandL.created_at, unit='s') + pd.DateOffset(hours=1)
         PandL.to_sql(con=conn,name='Profit_Loss',if_exists='replace')

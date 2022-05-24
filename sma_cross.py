@@ -9,7 +9,7 @@ from pytz import HOUR
 
 conn = sql.connect('bybit_sma')
 cur = conn.cursor()
-cur.execute('CREATE TABLE IF NOT EXISTS Logs (id integer PRIMARY KEY AUTOINCREMENT, symbol text, close decimal, fast_sma decimal, slow_sma decimal, cross text, buy_sell text, buy_price decimal, sell_price decimal, market_date timestamp DEFAULT current_timestamp)')
+cur.execute('CREATE TABLE IF NOT EXISTS Logs (id integer PRIMARY KEY AUTOINCREMENT, symbol text, close decimal, fast_sma decimal, slow_sma decimal, cross text, last_cross text, buy_sell text, buy_price decimal, sell_price decimal, market_date timestamp DEFAULT current_timestamp)')
 cur.execute('INSERT OR REPLACE INTO Logs (id,symbol,close,fast_sma,slow_sma,cross) VALUES (1,NULL,0,0,0,"wait")')
 conn.commit()
 session = HTTP("https://api.bybit.com",
@@ -37,15 +37,15 @@ def get_bybit_bars(trading_symbol, interval, startTime):
     applytechnicals(df)
     return df
 
-def insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,buy_sell,buy_price,sell_price):
+def insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price):
     if str(buy_sell).upper() not in ('LONG','SHORT'):
         buy_sell == None
-    insert_query = f'INSERT INTO Logs (symbol,close,fast_sma,slow_sma,cross,buy_sell,buy_price,sell_price) VALUES ("{trading_symbol}",{close_price},{fast_sma},{slow_sma},"{cross}","{buy_sell}",{buy_price},{sell_price})'
+    insert_query = f'INSERT INTO Logs (symbol,close,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price) VALUES ("{trading_symbol}",{close_price},{fast_sma},{slow_sma},"{cross}","{last_cross}","{buy_sell}",{buy_price},{sell_price})'
     cur.execute(insert_query)
     conn.commit()
 
 def read_last_log():
-    query = 'SELECT id,symbol,close,fast_sma,slow_sma,cross,market_date,buy_sell,buy_price,sell_price FROM logs ORDER BY id DESC LIMIT 1 '
+    query = 'SELECT id,symbol,close,fast_sma,slow_sma,cross,last_cross,market_date,buy_sell,buy_price,sell_price FROM logs ORDER BY id DESC LIMIT 1 '
     cur.execute(query)
     output = cur.fetchone()
     id = output[0]
@@ -54,11 +54,12 @@ def read_last_log():
     fast_sma = output[3]
     slow_sma = output[4]
     cross = output[5]
-    market_date = output[6]
-    buy_sell = output[7]
-    buy_price = output[8]
-    sell_price = output[9]
-    return id,symbol,close,fast_sma,slow_sma,cross,market_date,buy_sell,buy_price,sell_price
+    last_cross = output[6]
+    market_date = output[7]
+    buy_sell = output[8]
+    buy_price = output[9]
+    sell_price = output[10]
+    return id,symbol,close,fast_sma,slow_sma,cross,last_cross,market_date,buy_sell,buy_price,sell_price
 
 def get_quantity(close_price):
     funds = pd.DataFrame(session.get_wallet_balance()['result'])
@@ -140,7 +141,7 @@ def strategy(fast_sma,slow_sma,trading_symbol,close_price):
                                     close_on_trigger=False,
                                     take_profit=take_profit_var,
                                     stop_loss=stop_loss_var)
-        insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,buy_sell,buy_price,sell_price)
+        insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price)
 
 if __name__ == '__main__':
     trading_symbol = "SOLUSDT"
