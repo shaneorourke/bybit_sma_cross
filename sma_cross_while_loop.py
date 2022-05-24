@@ -2,9 +2,9 @@ import pandas as pd
 from pybit.usdt_perpetual import HTTP
 import secrets as sc
 import datetime as dt
+from datetime import timedelta
 import sqlite3 as sql
 from time import sleep
-
 from pytz import HOUR
 
 conn = sql.connect('bybit_sma')
@@ -20,8 +20,9 @@ except Exception as e:
     error = e
 
 now = dt.datetime.now()
+now = now + dt.timedelta(days=-1)
 today = dt.datetime(now.year, now.month, now.day)
-
+print(today)
 def applytechnicals(df):
     df['FastSMA'] = df.close.rolling(7).mean()
     df['SlowSMA'] = df.close.rolling(25).mean()
