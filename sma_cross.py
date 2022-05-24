@@ -131,6 +131,7 @@ def strategy(fast_sma,slow_sma,trading_symbol,close_price):
             buy_price = close_price
             take_profit_var = round(buy_price-(buy_price * 0.01),3) #1%
             stop_loss_var = round(buy_price+(buy_price * 0.015),3) #-1.5%
+            quantity = get_quantity(close_price)
             session.place_active_order(symbol=trading_symbol,
                                     side="Sell",
                                     order_type="Market",
