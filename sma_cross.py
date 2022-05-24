@@ -155,13 +155,14 @@ if __name__ == '__main__':
 
     orders = pd.DataFrame(session.get_active_order(symbol=trading_symbol)['result']['data'])
     orders.to_sql(con=conn,name='Orders',if_exists='replace')
-    position = pd.DataFrame(session.my_position(symbol=trading_symbol)['result'])
-    position.to_sql(con=conn,name='Position',if_exists='replace')
-    open_position = position[position.columns[0]].count()
-        
-    if open_position == 0: #If a position is open, e.g. not open else wait for tp and sl
-        strategy(fast_sma,slow_sma,trading_symbol,close_price)
 
+    user_trade_records = pd.DataFrame(session.user_trade_records(symbol=trading_symbol)['result']['data'])
+    user_trade_records.trade_time_ms = pd.to_datetime(user_trade_records.trade_time_ms, unit='ms') + pd.DateOffset(hours=1)
+    user_trade_records.to_sql(con=conn,name='User_Trade_Records',if_exists='replace')
+    open_position = user_trade_records.iloc[-1].closed_size
+    
+    if open_position == 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
+        strategy(fast_sma,slow_sma,trading_symbol,close_price)
     PandL =  pd.DataFrame(session.closed_profit_and_loss(symbol=trading_symbol)['result']['data'])
     PandL.created_at = pd.to_datetime(PandL.created_at, unit='s') + pd.DateOffset(hours=1)
     PandL.to_sql(con=conn,name='Profit_Loss',if_exists='replace')
