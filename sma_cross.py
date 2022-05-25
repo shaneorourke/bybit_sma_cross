@@ -19,8 +19,8 @@ try:
 except Exception as e:
     error = e
 
-now = dt.datetime.now()
-now = now + dt.timedelta(days=-1)
+now_today = dt.datetime.now()
+now = now_today + dt.timedelta(days=-1)
 today = dt.datetime(now.year, now.month, now.day)
 
 def applytechnicals(df):
@@ -109,7 +109,7 @@ def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price):
         last_cross = get_last_cross()
         
         if last_cross == 'down' and cross == 'up':
-            print('LONG')
+            print(f'{now_today}:LONG')
             buy_sell = 'LONG'
             buy_price = close_price
             take_profit_var = round(buy_price+(buy_price * 0.01),3) #1%
@@ -126,7 +126,7 @@ def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price):
                                     take_profit=take_profit_var,
                                     stop_loss=stop_loss_var)
         if last_cross == 'up' and cross == 'down':
-            print('SHORT')
+            print(f'{now_today}:SHORT')
             buy_sell == 'SHORT'
             buy_price = close_price
             take_profit_var = round(buy_price-(buy_price * 0.01),3) #1%
@@ -180,7 +180,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price):
         take_profit_var = round(buy_price+(buy_price * 0.01),3) #1%
         stop_loss_var = round(buy_price-(buy_price * 0.015),3) #-1.5%
         quantity = get_quantity(close_price)
-        #place_order("Buy",quantity,buy_price,take_profit_var,stop_loss_var)
+        place_order("Buy",quantity,buy_price,take_profit_var,stop_loss_var)
 
     if float(slow_sma) > float(fast_sma) and float(close_price) > float(slow_sma):
         print('SHORT')
@@ -189,7 +189,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price):
         take_profit_var = round(buy_price-(buy_price * 0.01),3) #1%
         stop_loss_var = round(buy_price+(buy_price * 0.015),3) #-1.5%
         quantity = get_quantity(close_price)
-        #place_order("Sell",quantity,buy_price,take_profit_var,stop_loss_var)
+        place_order("Sell",quantity,buy_price,take_profit_var,stop_loss_var)
 
     insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price)
 
