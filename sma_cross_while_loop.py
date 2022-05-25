@@ -94,7 +94,7 @@ def get_last_cross():
     last_cross = str(cur.fetchone()[2]).replace('(','').replace(')','').replace(',','')
     return last_cross
 
-def strategy(fast_sma,slow_sma,trading_symbol,close_price):
+def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price):
     
         if float(fast_sma) > float(slow_sma):
             cross = 'up'
@@ -144,6 +144,55 @@ def strategy(fast_sma,slow_sma,trading_symbol,close_price):
                                     stop_loss=stop_loss_var)
         insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price)
 
+def place_order(order_side,quantity,buy_price,take_profit_var,stop_loss_var):
+    order = session.place_active_order(symbol=trading_symbol,
+                                side=f"{order_side}",
+                                order_type="Market",
+                                qty=quantity,
+                                price=buy_price,
+                                time_in_force="ImmediateOrCancel",
+                                reduce_only=False,
+                                close_on_trigger=False,
+                                take_profit=take_profit_var,
+                                stop_loss=stop_loss_var)
+    order_df = pd.DataFrame[order['result']]
+    order_df.created_time = pd.to_datetime(order_df.created_time, unit='ms') + pd.DateOffset(hours=1)
+    order_df.updated_time = pd.to_datetime(order_df.updated_time, unit='ms') + pd.DateOffset(hours=1)
+    order_df.to_sql(con=conn,name='Python_Orders',if_exists='replace')
+
+def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price):
+    if float(fast_sma) > float(slow_sma):
+        cross = 'up'
+    if float(slow_sma) > float(fast_sma):
+        cross = 'down'
+    elif not float(fast_sma) < float(slow_sma) and not float(slow_sma) < float(fast_sma):
+        cross = 'wait'
+
+    buy_sell = ''
+    buy_price = 0
+    sell_price = 0
+    last_cross = get_last_cross()
+     
+    if float(fast_sma) > float(slow_sma) and float(close_price) < float(slow_sma):
+        print('LONG')
+        buy_sell = 'LONG'
+        buy_price = close_price
+        take_profit_var = round(buy_price+(buy_price * 0.01),3) #1%
+        stop_loss_var = round(buy_price-(buy_price * 0.015),3) #-1.5%
+        quantity = get_quantity(close_price)
+        place_order("Buy",quantity,buy_price,take_profit_var,stop_loss_var)
+
+    if float(slow_sma) > float(fast_sma) and float(close_price) > float(slow_sma):
+        print('SHORT')
+        buy_sell == 'SHORT'
+        buy_price = close_price
+        take_profit_var = round(buy_price-(buy_price * 0.01),3) #1%
+        stop_loss_var = round(buy_price+(buy_price * 0.015),3) #-1.5%
+        quantity = get_quantity(close_price)
+        place_order("Sell",quantity,buy_price,take_profit_var,stop_loss_var)
+
+    insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price)
+
 if __name__ == '__main__':
     while True:
         trading_symbol = "SOLUSDT"
@@ -153,22 +202,21 @@ if __name__ == '__main__':
         close_price = most_recent.close
         fast_sma = most_recent.FastSMA
         slow_sma = most_recent.SlowSMA
+
         orders = pd.DataFrame(session.get_active_order(symbol=trading_symbol)['result']['data'])
         orders.to_sql(con=conn,name='Orders',if_exists='replace')
         user_trade_records = pd.DataFrame(session.user_trade_records(symbol=trading_symbol)['result']['data'])
         user_trade_records.trade_time_ms = pd.to_datetime(user_trade_records.trade_time_ms, unit='ms') + pd.DateOffset(hours=1)
         user_trade_records.to_sql(con=conn,name='User_Trade_Records',if_exists='replace')
-        
+
         position = pd.DataFrame(session.my_position(symbol=trading_symbol)['result'])
         position.to_sql(con=conn,name='Position',if_exists='replace')
         open_position = position[position.columns[0]].count()
-
         cur.execute(f'select sum(size) from Position')
         open_position = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
-        
+
         if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
-            print('strat')
-            strategy(fast_sma,slow_sma,trading_symbol,close_price)
+            sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price)
 
         PandL =  pd.DataFrame(session.closed_profit_and_loss(symbol=trading_symbol)['result']['data'])
         PandL.created_at = pd.to_datetime(PandL.created_at, unit='s') + pd.DateOffset(hours=1)
