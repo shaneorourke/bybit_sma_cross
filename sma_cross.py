@@ -180,7 +180,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price):
         take_profit_var = round(buy_price+(buy_price * 0.01),3) #1%
         stop_loss_var = round(buy_price-(buy_price * 0.015),3) #-1.5%
         quantity = get_quantity(close_price)
-        place_order("Buy",quantity,buy_price,take_profit_var,stop_loss_var)
+        #place_order("Buy",quantity,buy_price,take_profit_var,stop_loss_var)
 
     if float(slow_sma) > float(fast_sma) and float(close_price) > float(slow_sma):
         print('SHORT')
@@ -189,7 +189,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price):
         take_profit_var = round(buy_price-(buy_price * 0.01),3) #1%
         stop_loss_var = round(buy_price+(buy_price * 0.015),3) #-1.5%
         quantity = get_quantity(close_price)
-        place_order("Sell",quantity,buy_price,take_profit_var,stop_loss_var)
+        #place_order("Sell",quantity,buy_price,take_profit_var,stop_loss_var)
 
     insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price)
 
@@ -215,7 +215,7 @@ if __name__ == '__main__':
     open_position = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
     
     if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
-        sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price)
+        sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price)
         
     PandL =  pd.DataFrame(session.closed_profit_and_loss(symbol=trading_symbol)['result']['data'])
     PandL.created_at = pd.to_datetime(PandL.created_at, unit='s') + pd.DateOffset(hours=1)
