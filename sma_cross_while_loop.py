@@ -20,7 +20,7 @@ except Exception as e:
     error = e
 
 now_today = dt.datetime.now()
-now = now_today + dt.timedelta(days=-1)
+now = now_today + dt.timedelta(days=-2)
 today = dt.datetime(now.year, now.month, now.day)
 
 def applytechnicals(df):
@@ -91,7 +91,10 @@ def get_last_cross():
                             order by fd.id DESC
                             limit 1;"""
     cur.execute(last_cross_query)
-    last_cross = str(cur.fetchone()[2]).replace('(','').replace(')','').replace(',','')
+    if cur.fetchone() != None:
+        last_cross = str(cur.fetchone()[2]).replace('(','').replace(')','').replace(',','')
+    else:
+        last_cross = 'wait'
     return last_cross
 
 def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price):
@@ -196,7 +199,8 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price):
 if __name__ == '__main__':
     while True:
         trading_symbol = "SOLUSDT"
-        candles = get_bybit_bars(trading_symbol,'15',today)
+        interval='60'
+        candles = get_bybit_bars(trading_symbol,interval,today)
         candles.to_sql(con=conn,name='Candles',if_exists='replace')
         most_recent = candles.iloc[-1]
         close_price = most_recent.close
@@ -221,3 +225,5 @@ if __name__ == '__main__':
         PandL =  pd.DataFrame(session.closed_profit_and_loss(symbol=trading_symbol)['result']['data'])
         PandL.created_at = pd.to_datetime(PandL.created_at, unit='s') + pd.DateOffset(hours=1)
         PandL.to_sql(con=conn,name='Profit_Loss',if_exists='replace')
+
+        print(read_last_log())
