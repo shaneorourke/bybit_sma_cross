@@ -80,7 +80,6 @@ def get_quantity(close_price):
     get_available_bal = 'select USDT from Funds where "index" = "available_balance"'
     cur.execute(get_available_bal)
     available_balance = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
-    close_price = 53.865
     qty = round((available_balance / close_price),1)
     return qty
 
@@ -304,10 +303,10 @@ if __name__ == '__main__':
         current_tp = get_current_tp_sl(order_id)[0]
         current_sl = get_current_tp_sl(order_id)[1]
         if last_order_side == 'Sell':
-            if close_price < current_sl:
+            if close_price > current_sl:
                 print('close - short - stop loss')
                 close_position(trading_symbol,order_id)
-            if close_price > current_tp:
+            if close_price < current_tp:
                 print('Upping TP SL - Short')
                 take_profit = round(close_price-(close_price * 0.01),3)
                 stop_loss = round(close_price+(close_price * 0.015),3)
@@ -321,6 +320,7 @@ if __name__ == '__main__':
                 take_profit = round(close_price+(close_price * 0.01),3)
                 stop_loss = round(close_price-(close_price * 0.015),3)
                 amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
+        insert_log(trading_symbol,close_price,fast_sma,slow_sma,'na',get_last_cross(),last_order_side,bought_price,0)
     cur.close()
     conn.close()
     conn = sql.connect('bybit_sma')

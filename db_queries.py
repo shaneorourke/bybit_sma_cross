@@ -35,6 +35,26 @@ cur.execute(LosingTrades)
 Losing_Trades = sql_out_replace(cur.fetchone(),False)
 print(f'Losing Trades:{Losing_Trades}')
 
+Current_Order = """
+            with last_order as (select order_id from Orders order by created_time desc limit 1)
+            , symbol as (select symbol from Orders where order_id = (select order_id from last_order) limit 1)
+            , buy_price as (select last_exec_price from Orders where order_id = (select order_id from last_order) limit 1)
+            , side as (select side from Orders where order_id = (select order_id from last_order) limit 1)
+            , tp as (select current_take_profit from take_profit_stop_loss where order_id=(select order_id from last_order))
+            , tp_perc as (select (current_take_profit/bought_price)/bought_price*100 as tp_perc from take_profit_stop_loss)
+            , sl as (select current_stop_loss from take_profit_stop_loss where order_id=(select order_id from last_order))
+            , current_price as (select close from Logs where symbol = (select symbol from symbol) order by market_date desc limit 1)
+            select --(select order_id from last_order) as order_id,
+            (select symbol from symbol) as symbol,
+            (select side from side) as side,
+            (select last_exec_price from buy_price) as buy_price,
+            (select current_take_profit from tp) as take_profit,
+            (select current_stop_loss from sl) as stop_loss,
+            (select close from current_price) as close,
+            round((select last_exec_price from buy_price) - (select close from current_price),3) as PL,
+            round((round((select last_exec_price from buy_price) - (select close from current_price),3) / (select last_exec_price from buy_price))*100,3) as PL_Perc
+"""
+
 #OpenTrades = """select count(*) as OpenTrades from Orders o left join Profit_Loss p on o.order_id = p.order_id where p.order_id is null;"""
 #cur.execute(OpenTrades)
 #Open_Trades = sql_out_replace(cur.fetchone(),False)
