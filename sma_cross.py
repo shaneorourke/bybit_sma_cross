@@ -12,7 +12,7 @@ cur = conn.cursor()
 cur.execute('CREATE TABLE IF NOT EXISTS Logs (id integer PRIMARY KEY AUTOINCREMENT, symbol text, close decimal, fast_sma decimal, slow_sma decimal, cross text, last_cross text, buy_sell text, buy_price decimal, sell_price decimal, market_date timestamp DEFAULT current_timestamp)')
 cur.execute('INSERT OR REPLACE INTO Logs (id,symbol,close,fast_sma,slow_sma,cross) VALUES (1,NULL,0,0,0,"wait")')
 cur.execute('CREATE TABLE IF NOT EXISTS take_profit_stop_loss (order_id text, bought_price real, current_take_profit real, current_stop_loss real)')
-cur.execute('CREATE TABLE  IF NOT EXISTS Python_Orders ( "index" INTEGER, order_id TEXT, user_id INTEGER, symbol TEXT, side TEXT, order_type TEXT, price REAL, qty REAL, time_in_force TEXT, order_status TEXT, last_exec_price INTEGER, cum_exec_qty INTEGER, cum_exec_value INTEGER, cum_exec_fee INTEGER, reduce_only INTEGER, close_on_trigger INTEGER, order_link_id TEXT, created_time TEXT, updated_time TEXT, take_profit REAL, stop_loss REAL, tp_trigger_by TEXT, sl_trigger_by TEXT, position_idx INTEGER')
+cur.execute('CREATE TABLE  IF NOT EXISTS Python_Orders ( "index" INTEGER, order_id TEXT, user_id INTEGER, symbol TEXT, side TEXT, order_type TEXT, price REAL, qty REAL, time_in_force TEXT, order_status TEXT, last_exec_price INTEGER, cum_exec_qty INTEGER, cum_exec_value INTEGER, cum_exec_fee INTEGER, reduce_only INTEGER, close_on_trigger INTEGER, order_link_id TEXT, created_time TEXT, updated_time TEXT, take_profit REAL, stop_loss REAL, tp_trigger_by TEXT, sl_trigger_by TEXT, position_idx INTEGER)')
 conn.commit()
 
 session = HTTP("https://api.bybit.com",
