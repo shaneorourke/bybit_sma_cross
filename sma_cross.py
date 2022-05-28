@@ -216,13 +216,14 @@ def get_last_python_order(trading_symbol):
     return order_id
 
 def get_last_python_order_price(order_id):
-    bought_price_query = f'select price from Python_Orders where order_id={order_id} order by updated_time desc'
+    bought_price_query = f'select price from Python_Orders where order_id="{order_id}" order by updated_time desc'
+    print(bought_price_query)
     cur.execute(bought_price_query)
     bought_price = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
     return bought_price
 
 def get_last_python_order_side(order_id):
-    side_query = f'select side from Python_Orders where order_id={order_id} order by updated_time desc'
+    side_query = f'select side from Python_Orders where order_id="{order_id}" order by updated_time desc'
     cur.execute(side_query)
     side = str(cur.fetchone()).replace('(','').replace(')','').replace(',','')
     return side
@@ -230,7 +231,6 @@ def get_last_python_order_side(order_id):
 def amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss):
     cur.execute(f'select count(*) from take_profit_stop_loss where order_id = {order_id}')
     row_exists = int(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
-    print(row_exists)
     if row_exists == 1:
         cur.execute(f'update take_profit_stop_loss set current_take_profit={take_profit}, current_stop_loss={stop_loss} where order_id = {order_id}')
     else:
@@ -249,6 +249,15 @@ def close_position(trading_symbol,order_id):
     session.close_position(symbol=trading_symbol)
     cur.execute(f'delete from take_profit_stop_loss where order_id ="{order_id}"')
     conn.commit()
+
+def check_python_orders():
+    cur.execute('select count(*) from Python_Orders')
+    row_exists = int(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
+    if row_exists == 1:
+        return True
+    else:
+        print('No order recorded in this database yet')
+        return False
 
 if __name__ == '__main__':
     trading_symbol = "SOLUSDT"
@@ -276,7 +285,7 @@ if __name__ == '__main__':
     if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
         sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
 
-    if open_position > 0.0 and trailing_stop_take_profit:
+    if open_position > 0.0 and trailing_stop_take_profit and check_python_orders():
         print('Open Position Trailing Stop')
         order_id = get_last_python_order(trading_symbol)
         bought_price = get_last_python_order_price(order_id)
