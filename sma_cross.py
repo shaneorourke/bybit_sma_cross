@@ -11,7 +11,9 @@ conn = sql.connect('bybit_sma')
 cur = conn.cursor()
 cur.execute('CREATE TABLE IF NOT EXISTS Logs (id integer PRIMARY KEY AUTOINCREMENT, symbol text, close decimal, fast_sma decimal, slow_sma decimal, cross text, last_cross text, buy_sell text, buy_price decimal, sell_price decimal, market_date timestamp DEFAULT current_timestamp)')
 cur.execute('INSERT OR REPLACE INTO Logs (id,symbol,close,fast_sma,slow_sma,cross) VALUES (1,NULL,0,0,0,"wait")')
+cur.execute('CREATE TABLE IF NOT EXISTS take_profit_stop_loss (order_id text, bought_price real, current_take_profit real, current_stop_loss real)')
 conn.commit()
+
 session = HTTP("https://api.bybit.com",
                api_key= sc.API_KEY, api_secret=sc.API_SECRET)
 try:
@@ -91,8 +93,9 @@ def get_last_cross():
                             order by fd.id DESC
                             limit 1;"""
     cur.execute(last_cross_query)
-    if cur.fetchone() != None:
-        last_cross = str(cur.fetchone()[2]).replace('(','').replace(')','').replace(',','')
+    result = cur.fetchone()
+    if result != None or result != 'None':
+        last_cross = str(result[2]).replace('(','').replace(')','').replace(',','')
     else:
         last_cross = 'wait'
     return last_cross
@@ -147,23 +150,32 @@ def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price):
                                     stop_loss=stop_loss_var)
         insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price)
 
-def place_order(order_side,quantity,buy_price,take_profit_var,stop_loss_var):
-    order = session.place_active_order(symbol=trading_symbol,
-                                side=f"{order_side}",
-                                order_type="Market",
-                                qty=quantity,
-                                price=buy_price,
-                                time_in_force="ImmediateOrCancel",
-                                reduce_only=False,
-                                close_on_trigger=False,
-                                take_profit=take_profit_var,
-                                stop_loss=stop_loss_var)
-    order_df = pd.DataFrame[order['result']]
-    order_df.created_time = pd.to_datetime(order_df.created_time, unit='ms') + pd.DateOffset(hours=1)
-    order_df.updated_time = pd.to_datetime(order_df.updated_time, unit='ms') + pd.DateOffset(hours=1)
+def place_order(trading_symbol,order_side,quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit):
+    if not trailing_stop_take_profit:
+        order_df = pd.DataFrame(session.place_active_order(symbol=trading_symbol,
+                                    side=f"{order_side}",
+                                    order_type="Market",
+                                    qty=quantity,
+                                    price=buy_price,
+                                    time_in_force="ImmediateOrCancel",
+                                    reduce_only=False,
+                                    close_on_trigger=False,
+                                    take_profit=take_profit_var,
+                                    stop_loss=stop_loss_var)['result'],index=[0])
+    else:
+        order_df = pd.DataFrame(session.place_active_order(symbol=trading_symbol,
+                                    side=f"{order_side}",
+                                    order_type="Market",
+                                    qty=quantity,
+                                    price=buy_price,
+                                    time_in_force="ImmediateOrCancel",
+                                    reduce_only=False,
+                                    close_on_trigger=False)['result'],index=[0])
+        amend_take_profit_stop_loss(order_df.order_id,buy_price,take_profit_var,stop_loss_var)
     order_df.to_sql(con=conn,name='Python_Orders',if_exists='replace')
 
-def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price):
+
+def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit):
     if float(fast_sma) > float(slow_sma):
         cross = 'up'
     if float(slow_sma) > float(fast_sma):
@@ -183,7 +195,8 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price):
         take_profit_var = round(buy_price+(buy_price * 0.01),3) #1%
         stop_loss_var = round(buy_price-(buy_price * 0.015),3) #-1.5%
         quantity = get_quantity(close_price)
-        place_order("Buy",quantity,buy_price,take_profit_var,stop_loss_var)
+        place_order(trading_symbol,"Buy",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit)
+
 
     if float(slow_sma) > float(fast_sma) and float(close_price) > float(slow_sma):
         print('SHORT')
@@ -192,13 +205,54 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price):
         take_profit_var = round(buy_price-(buy_price * 0.01),3) #1%
         stop_loss_var = round(buy_price+(buy_price * 0.015),3) #-1.5%
         quantity = get_quantity(close_price)
-        place_order("Sell",quantity,buy_price,take_profit_var,stop_loss_var)
+        place_order(trading_symbol,"Sell",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit)
 
     insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price)
+
+def get_last_python_order(trading_symbol):
+    cur.execute(f'select order_id from Python_Orders where symbol="{trading_symbol}" order by updated_time desc')
+    order_id = str(cur.fetchone()).replace('(','').replace(')','').replace(',','')
+    return order_id
+
+def get_last_python_order_price(order_id):
+    bought_price_query = f'select price from Python_Orders where order_id={order_id} order by updated_time desc'
+    cur.execute(bought_price_query)
+    bought_price = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
+    return bought_price
+
+def get_last_python_order_side(order_id):
+    side_query = f'select side from Python_Orders where order_id={order_id} order by updated_time desc'
+    cur.execute(side_query)
+    side = str(cur.fetchone()).replace('(','').replace(')','').replace(',','')
+    return side
+
+def amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss):
+    cur.execute(f'select count(*) from take_profit_stop_loss where order_id = {order_id}')
+    row_exists = int(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
+    print(row_exists)
+    if row_exists == 1:
+        cur.execute(f'update take_profit_stop_loss set current_take_profit={take_profit}, current_stop_loss={stop_loss} where order_id = {order_id}')
+    else:
+        cur.execute(f'insert into take_profit_stop_loss (order_id, bought_price, current_take_profit, current_stop_loss) values ("{order_id}",{bought_price},{take_profit},{stop_loss})')
+    conn.commit()
+
+def get_current_tp_sl(order_id):
+    cur.execute(f'select current_take_profit from take_profit_stop_loss where order_id = "{order_id}"')
+    tp = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
+    cur.execute(f'select current_stop_loss from take_profit_stop_loss where order_id = "{order_id}"')
+    sl = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
+    conn.commit()
+    return tp, sl
+
+def close_position(trading_symbol,order_id):
+    session.close_position(symbol=trading_symbol)
+    cur.execute(f'delete from take_profit_stop_loss where order_id ="{order_id}"')
+    conn.commit()
 
 if __name__ == '__main__':
     trading_symbol = "SOLUSDT"
     interval='60'
+    trailing_stop_take_profit = True
     candles = get_bybit_bars(trading_symbol,interval,today)
     candles.to_sql(con=conn,name='Candles',if_exists='replace')
     most_recent = candles.iloc[-1]
@@ -219,8 +273,42 @@ if __name__ == '__main__':
     open_position = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
     
     if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
-        sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price)
-        
+        sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
+
+    if open_position > 0.0 and trailing_stop_take_profit:
+        print('Open Position Trailing Stop')
+        order_id = get_last_python_order(trading_symbol)
+        bought_price = get_last_python_order_price(order_id)
+        last_order_side = get_last_python_order_side(order_id)
+        current_tp = get_current_tp_sl(order_id)[0]
+        current_sl = get_current_tp_sl(order_id)[1]
+
+
+        if last_order_side == 'Sell':
+            if close_price < current_sl:
+                print('close - short - stop loss')
+                close_position(trading_symbol,order_id)
+
+            if close_price > current_tp:
+                print('Upping TP SL - Short')
+                take_profit = round(close_price-(close_price * 0.01),3)
+                stop_loss = round(close_price+(close_price * 0.015),3)
+                amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
+            
+        if last_order_side == 'Buy':
+            if close_price < current_sl:
+                print('close - long - stop loss')
+                close_position(trading_symbol,order_id)
+            if close_price > current_tp:
+                print('Upping TP SL - Long')
+                take_profit = round(close_price+(close_price * 0.01),3)
+                stop_loss = round(close_price-(close_price * 0.015),3)
+                amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
+            
+    cur.close()
+    conn.close()
+    conn = sql.connect('bybit_sma')
+    cur = conn.cursor()
     PandL =  pd.DataFrame(session.closed_profit_and_loss(symbol=trading_symbol)['result']['data'])
     PandL.created_at = pd.to_datetime(PandL.created_at, unit='s') + pd.DateOffset(hours=1)
     PandL.to_sql(con=conn,name='Profit_Loss',if_exists='replace')
