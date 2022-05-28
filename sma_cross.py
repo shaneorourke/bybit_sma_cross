@@ -12,7 +12,6 @@ cur = conn.cursor()
 cur.execute('CREATE TABLE IF NOT EXISTS Logs (id integer PRIMARY KEY AUTOINCREMENT, symbol text, close decimal, fast_sma decimal, slow_sma decimal, cross text, last_cross text, buy_sell text, buy_price decimal, sell_price decimal, market_date timestamp DEFAULT current_timestamp)')
 cur.execute('INSERT OR REPLACE INTO Logs (id,symbol,close,fast_sma,slow_sma,cross) VALUES (1,NULL,0,0,0,"wait")')
 cur.execute('CREATE TABLE IF NOT EXISTS take_profit_stop_loss (order_id text, bought_price real, current_take_profit real, current_stop_loss real)')
-cur.execute('CREATE TABLE  IF NOT EXISTS Python_Orders ( "index" INTEGER, order_id TEXT, user_id INTEGER, symbol TEXT, side TEXT, order_type TEXT, price REAL, qty REAL, time_in_force TEXT, order_status TEXT, last_exec_price INTEGER, cum_exec_qty INTEGER, cum_exec_value INTEGER, cum_exec_fee INTEGER, reduce_only INTEGER, close_on_trigger INTEGER, order_link_id TEXT, created_time TEXT, updated_time TEXT, take_profit REAL, stop_loss REAL, tp_trigger_by TEXT, sl_trigger_by TEXT, position_idx INTEGER)')
 conn.commit()
 
 session = HTTP("https://api.bybit.com",
@@ -183,8 +182,9 @@ def place_order(trading_symbol,order_side,quantity,buy_price,take_profit_var,sto
                                     time_in_force="ImmediateOrCancel",
                                     reduce_only=False,
                                     close_on_trigger=False)['result'],index=[0])
-        amend_take_profit_stop_loss(order_df.order_id,buy_price,take_profit_var,stop_loss_var)
-    order_df.to_sql(con=conn,name='Python_Orders',if_exists='replace')
+        order_id = order_df['order_id'].to_string(index=False)
+        amend_take_profit_stop_loss(order_id,buy_price,take_profit_var,stop_loss_var)
+    conn.commit()
 
 
 def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit):
@@ -221,37 +221,28 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
 
     insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price)
 
-def get_last_python_order(trading_symbol):
-    cur.execute(f'select order_id from Python_Orders where symbol="{trading_symbol}" order by updated_time desc')
+def get_last_order(trading_symbol):
+    cur.execute(f'select order_id from Orders where symbol="{trading_symbol}" order by updated_time desc')
     order_id = str(cur.fetchone()).replace('(','').replace(')','').replace(',','')
-    return order_id
-
-def get_last_python_order_price(order_id):
-    bought_price_query = f'select price from Python_Orders where order_id="{order_id}" order by updated_time desc'
-    print(bought_price_query)
-    cur.execute(bought_price_query)
-    bought_price = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
-    return bought_price
-
-def get_last_python_order_side(order_id):
-    side_query = f'select side from Python_Orders where order_id="{order_id}" order by updated_time desc'
-    cur.execute(side_query)
+    cur.execute(f'select last_exec_price from Orders where order_id={order_id} order by updated_time desc')
+    price = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
+    cur.execute(f'select side from Orders where order_id={order_id} order by updated_time desc')
     side = str(cur.fetchone()).replace('(','').replace(')','').replace(',','')
-    return side
+    return order_id, price, side
 
 def amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss):
-    cur.execute(f'select count(*) from take_profit_stop_loss where order_id = {order_id}')
+    cur.execute(f'select count(*) from take_profit_stop_loss where order_id = "{order_id}"')
     row_exists = int(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
     if row_exists == 1:
-        cur.execute(f'update take_profit_stop_loss set current_take_profit={take_profit}, current_stop_loss={stop_loss} where order_id = {order_id}')
+        cur.execute(f'update take_profit_stop_loss set current_take_profit={take_profit}, current_stop_loss={stop_loss} where order_id = "{order_id}"')
     else:
         cur.execute(f'insert into take_profit_stop_loss (order_id, bought_price, current_take_profit, current_stop_loss) values ("{order_id}",{bought_price},{take_profit},{stop_loss})')
     conn.commit()
 
 def get_current_tp_sl(order_id):
-    cur.execute(f'select current_take_profit from take_profit_stop_loss where order_id = "{order_id}"')
+    cur.execute(f'select current_take_profit from take_profit_stop_loss where order_id = {order_id}')
     tp = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
-    cur.execute(f'select current_stop_loss from take_profit_stop_loss where order_id = "{order_id}"')
+    cur.execute(f'select current_stop_loss from take_profit_stop_loss where order_id = {order_id}')
     sl = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
     conn.commit()
     return tp, sl
@@ -261,14 +252,6 @@ def close_position(trading_symbol,order_id):
     cur.execute(f'delete from take_profit_stop_loss where order_id ="{order_id}"')
     conn.commit()
 
-def check_python_orders():
-    cur.execute('select count(*) from Python_Orders')
-    row_exists = int(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
-    if row_exists == 1:
-        return True
-    else:
-        print('No order recorded in this database yet')
-        return False
 
 def get_trend():
     ## Currently unused
@@ -313,11 +296,11 @@ if __name__ == '__main__':
     open_position = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
     if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
         sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
-    if open_position > 0.0 and trailing_stop_take_profit and check_python_orders():
+    if open_position > 0.0 and trailing_stop_take_profit:
         print('Open Position Trailing Stop')
-        order_id = get_last_python_order(trading_symbol)
-        bought_price = get_last_python_order_price(order_id)
-        last_order_side = get_last_python_order_side(order_id)
+        order_id = get_last_order(trading_symbol)[0]
+        bought_price = get_last_order(trading_symbol)[1]
+        last_order_side = get_last_order(trading_symbol)[2]
         current_tp = get_current_tp_sl(order_id)[0]
         current_sl = get_current_tp_sl(order_id)[1]
         if last_order_side == 'Sell':
