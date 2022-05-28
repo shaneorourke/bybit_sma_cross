@@ -64,6 +64,17 @@ def read_last_log():
     sell_price = output[10]
     return id,symbol,close,fast_sma,slow_sma,cross,last_cross,market_date,buy_sell,buy_price,sell_price
 
+def print_Last_log():
+    log = read_last_log()
+    print(f'id:{log[0]}')
+    print(f'symbol:{log[1]}')
+    print(f'close:{log[2]}')
+    print(f'fast_sma:{log[3]}')
+    print(f'slow_sma:{log[4]}')
+    print(f'cross:{log[5]}')
+    print(f'last_cross:{log[6]}')
+    print()
+
 def get_quantity(close_price):
     funds = pd.DataFrame(session.get_wallet_balance()['result'])
     funds.to_sql(con=conn,name='Funds',if_exists='replace')
@@ -95,7 +106,7 @@ def get_last_cross():
                             limit 1;"""
     cur.execute(last_cross_query)
     result = cur.fetchone()
-    if result != None or result != 'None':
+    if result != None and result != 'None':
         last_cross = str(result[2]).replace('(','').replace(')','').replace(',','')
     else:
         last_cross = 'wait'
@@ -345,5 +356,5 @@ if __name__ == '__main__':
         PandL.created_at = pd.to_datetime(PandL.created_at, unit='s') + pd.DateOffset(hours=1)
         PandL.to_sql(con=conn,name='Profit_Loss',if_exists='replace')
 
-        read_last_log()
+        print_Last_log()
         sleep(60)
