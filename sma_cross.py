@@ -23,7 +23,7 @@ except Exception as e:
     error = e
 
 now_today = dt.datetime.now()
-now = now_today + dt.timedelta(days=-2)
+now = now_today + dt.timedelta(days=-3)
 today = dt.datetime(now.year, now.month, now.day)
 
 def applytechnicals(df):
