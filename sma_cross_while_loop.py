@@ -259,6 +259,27 @@ def check_python_orders():
         print('No order recorded in this database yet')
         return False
 
+def get_trend():
+    ## Currently unused
+    trend_query = """with first_row as (select "index",id,close,FastSMA,SlowSMA 
+                            from Candles
+                            where FastSMA is not null and SlowSMA is not null)
+        , second_row as (select "index",id,close,FastSMA,SlowSMA
+                            from Candles
+                            where FastSMA is not null and SlowSMA is not null)
+        , trend as (select case when fr.SlowSMA < sr.SlowSMA then 'down' when fr.SlowSMA > sr.SlowSMA then 'up' else 'undetermined' end as trend from first_row fr 
+                    inner join second_row sr
+                    on fr."index" = sr."index"+1)
+        , overall_trend as (select trend, count(trend) trend_count from trend t
+                    group by trend)
+        select trend from overall_trend
+        order by trend_count DESC
+        limit 1;"""
+    cur.execute(trend_query)
+    trend = str(cur.fetchone()).replace('(','').replace(')','').replace(',','')
+    return trend
+
+
 if __name__ == '__main__':
     while True:
         trading_symbol = "SOLUSDT"
@@ -325,3 +346,4 @@ if __name__ == '__main__':
         PandL.to_sql(con=conn,name='Profit_Loss',if_exists='replace')
 
         read_last_log()
+        sleep(60)
