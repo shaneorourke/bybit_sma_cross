@@ -231,6 +231,8 @@ def get_last_order(trading_symbol):
     return order_id, price, side
 
 def amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss):
+    print('Amending Stop')
+    order_id = str(order_id).replace("'","")
     cur.execute(f'select count(*) from take_profit_stop_loss where order_id = "{order_id}"')
     row_exists = int(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
     if row_exists == 1:
@@ -309,8 +311,7 @@ if __name__ == '__main__':
             current_tp = get_current_tp_sl(order_id)[0]
             current_sl = get_current_tp_sl(order_id)[1]
 
-
-            if last_order_side == 'Sell':
+            if last_order_side == "'Sell'":
                 if close_price > current_sl:
                     print('close - short - stop loss')
                     close_position(trading_symbol,order_id)
@@ -318,17 +319,17 @@ if __name__ == '__main__':
                 if close_price < current_tp:
                     print('Upping TP SL - Short')
                     take_profit = round(close_price-(close_price * 0.01),3)
-                    stop_loss = round(close_price+(close_price * 0.015),3)
+                    stop_loss = round(close_price+(close_price * 0.005),3) # Up SL to +0.5% of Close (Rasing more than non-trailing for more gains)
                     amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
 
-            if last_order_side == 'Buy':
+            if last_order_side == "'Buy'":
                 if close_price < current_sl:
                     print('close - long - stop loss')
                     close_position(trading_symbol,order_id)
                 if close_price > current_tp:
                     print('Upping TP SL - Long')
                     take_profit = round(close_price+(close_price * 0.01),3)
-                    stop_loss = round(close_price-(close_price * 0.015),3)
+                    stop_loss = round(close_price-(close_price * 0.005),3) # Up SL to -0.5% of Close (Rasing more than non-trailing for more gains)
                     amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
 
             insert_log(trading_symbol,close_price,fast_sma,slow_sma,'na',get_last_cross(),last_order_side,bought_price,0)

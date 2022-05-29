@@ -15,7 +15,7 @@ cur.execute('CREATE TABLE IF NOT EXISTS take_profit_stop_loss (order_id text, bo
 conn.commit()
 
 session = HTTP("https://api.bybit.com",
-               api_key= sc.API_KEY, api_secret=sc.API_SECRET)
+               api_key= sc.API_KEY, api_secret=sc.API_SECRET,request_timeout=30)
 try:
     session.set_leverage(symbol="SOLUSDT",buy_leverage=1,sell_leverage=1)
 except Exception as e:
@@ -231,6 +231,8 @@ def get_last_order(trading_symbol):
     return order_id, price, side
 
 def amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss):
+    print('Amending Stop')
+    order_id = str(order_id).replace("'","")
     cur.execute(f'select count(*) from take_profit_stop_loss where order_id = "{order_id}"')
     row_exists = int(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
     if row_exists == 1:
@@ -303,23 +305,23 @@ if __name__ == '__main__':
         last_order_side = get_last_order(trading_symbol)[2]
         current_tp = get_current_tp_sl(order_id)[0]
         current_sl = get_current_tp_sl(order_id)[1]
-        if last_order_side == 'Sell':
+        if last_order_side == "'Sell'":
             if close_price > current_sl:
                 print('close - short - stop loss')
                 close_position(trading_symbol,order_id)
             if close_price < current_tp:
                 print('Upping TP SL - Short')
                 take_profit = round(close_price-(close_price * 0.01),3)
-                stop_loss = round(close_price+(close_price * 0.015),3)
+                stop_loss = round(close_price+(close_price * 0.005),3) # Up SL to +0.5% of Close (Rasing more than non-trailing for more gains)
                 amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
-        if last_order_side == 'Buy':
+        if last_order_side == "'Buy'":
             if close_price < current_sl:
                 print('close - long - stop loss')
                 close_position(trading_symbol,order_id)
             if close_price > current_tp:
                 print('Upping TP SL - Long')
                 take_profit = round(close_price+(close_price * 0.01),3)
-                stop_loss = round(close_price-(close_price * 0.015),3)
+                stop_loss = round(close_price-(close_price * 0.005),3) # Up SL to -0.5% of Close (Rasing more than non-trailing for more gains)
                 amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
         insert_log(trading_symbol,close_price,fast_sma,slow_sma,'na',get_last_cross(),last_order_side,bought_price,0)
     cur.close()
@@ -329,4 +331,3 @@ if __name__ == '__main__':
     PandL =  pd.DataFrame(session.closed_profit_and_loss(symbol=trading_symbol)['result']['data'])
     PandL.created_at = pd.to_datetime(PandL.created_at, unit='s') + pd.DateOffset(hours=1)
     PandL.to_sql(con=conn,name='Profit_Loss',if_exists='replace')
-
