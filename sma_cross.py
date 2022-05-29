@@ -268,6 +268,13 @@ def close_position(trading_symbol,order_id):
     cur.execute(f'delete from take_profit_stop_loss where order_id ="{order_id}"')
     conn.commit()
 
+def check_open_position():
+    position = pd.DataFrame(session.my_position(symbol=trading_symbol)['result'])
+    position.to_sql(con=conn,name='Position',if_exists='replace')
+    open_position = position[position.columns[0]].count()
+    cur.execute(f'select sum(size) from Position')
+    open_position = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
+    return open_position
 
 def get_trend():
     ## Currently unused
@@ -305,14 +312,15 @@ if __name__ == '__main__':
     user_trade_records = pd.DataFrame(session.user_trade_records(symbol=trading_symbol)['result']['data'])
     user_trade_records.trade_time_ms = pd.to_datetime(user_trade_records.trade_time_ms, unit='ms') + pd.DateOffset(hours=1)
     user_trade_records.to_sql(con=conn,name='User_Trade_Records',if_exists='replace')
-    position = pd.DataFrame(session.my_position(symbol=trading_symbol)['result'])
-    position.to_sql(con=conn,name='Position',if_exists='replace')
-    open_position = position[position.columns[0]].count()
-    cur.execute(f'select sum(size) from Position')
-    open_position = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
+    
+    open_position = check_open_position()
     if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
-        #sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
         sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
+
+    open_position = check_open_position()
+    if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
+        sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
+        
     if open_position > 0.0 and trailing_stop_take_profit:
         trailing_sl = trailing_stop_loss(trading_symbol,close_price)
     cur.close()
