@@ -111,7 +111,7 @@ def get_last_cross():
         last_cross = 'wait'
     return last_cross
 
-def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price):
+def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit):
     
         if float(fast_sma) > float(slow_sma):
             cross = 'up'
@@ -132,16 +132,8 @@ def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price):
             take_profit_var = round(buy_price+(buy_price * 0.01),3) #1%
             stop_loss_var = round(buy_price-(buy_price * 0.015),3) #-1.5%
             quantity = get_quantity(close_price)
-            session.place_active_order(symbol=trading_symbol,
-                                    side="Buy",
-                                    order_type="Market",
-                                    qty=quantity,
-                                    price=buy_price,
-                                    time_in_force="ImmediateOrCancel",
-                                    reduce_only=False,
-                                    close_on_trigger=False,
-                                    take_profit=take_profit_var,
-                                    stop_loss=stop_loss_var)
+            place_order(trading_symbol,"Buy",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit)
+
         if last_cross == 'up' and cross == 'down':
             print(f'{now_today}:SHORT')
             buy_sell == 'SHORT'
@@ -149,16 +141,8 @@ def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price):
             take_profit_var = round(buy_price-(buy_price * 0.01),3) #1%
             stop_loss_var = round(buy_price+(buy_price * 0.015),3) #-1.5%
             quantity = get_quantity(close_price)
-            session.place_active_order(symbol=trading_symbol,
-                                    side="Sell",
-                                    order_type="Market",
-                                    qty=quantity,
-                                    price=buy_price,
-                                    time_in_force="ImmediateOrCancel",
-                                    reduce_only=False,
-                                    close_on_trigger=False,
-                                    take_profit=take_profit_var,
-                                    stop_loss=stop_loss_var)
+            place_order(trading_symbol,"Buy",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit)
+
         insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price)
 
 def place_order(trading_symbol,order_side,quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit):
@@ -220,6 +204,36 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
         place_order(trading_symbol,"Sell",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit)
 
     insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price)
+
+def trailing_stop_loss(trading_symbol,close_price):
+    print('Open Position Trailing Stop')
+    order_id = get_last_order(trading_symbol)[0]
+    bought_price = get_last_order(trading_symbol)[1]
+    last_order_side = get_last_order(trading_symbol)[2]
+    current_tp = get_current_tp_sl(order_id)[0]
+    current_sl = get_current_tp_sl(order_id)[1]
+    if last_order_side == "'Sell'":
+        if close_price > current_sl:
+            print('close - short - stop loss')
+            close_position(trading_symbol,order_id)
+        if close_price < current_tp:
+            print('Upping TP SL - Short')
+            take_profit = round(close_price-(close_price * 0.001),3)
+            stop_loss = round(close_price+(close_price * 0.005),3) # Up SL to +0.5% of Close (Rasing more than non-trailing for more gains)
+            amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
+    if last_order_side == "'Buy'":
+        if close_price < current_sl:
+            print('close - long - stop loss')
+            close_position(trading_symbol,order_id)
+        if close_price > current_tp:
+            print('Upping TP SL - Long')
+            take_profit = round(close_price+(close_price * 0.001),3)
+            stop_loss = round(close_price-(close_price * 0.005),3) # Up SL to -0.5% of Close (Rasing more than non-trailing for more gains)
+            amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
+
+    insert_log(trading_symbol,close_price,fast_sma,slow_sma,'na',get_last_cross(),last_order_side,bought_price,0)
+    
+    return bought_price, last_order_side
 
 def get_last_order(trading_symbol):
     cur.execute(f'select order_id from Orders where symbol="{trading_symbol}" order by updated_time desc')
@@ -297,33 +311,10 @@ if __name__ == '__main__':
     cur.execute(f'select sum(size) from Position')
     open_position = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
     if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
-        sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
+        #sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
+        sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
     if open_position > 0.0 and trailing_stop_take_profit:
-        print('Open Position Trailing Stop')
-        order_id = get_last_order(trading_symbol)[0]
-        bought_price = get_last_order(trading_symbol)[1]
-        last_order_side = get_last_order(trading_symbol)[2]
-        current_tp = get_current_tp_sl(order_id)[0]
-        current_sl = get_current_tp_sl(order_id)[1]
-        if last_order_side == "'Sell'":
-            if close_price > current_sl:
-                print('close - short - stop loss')
-                close_position(trading_symbol,order_id)
-            if close_price < current_tp:
-                print('Upping TP SL - Short')
-                take_profit = round(close_price-(close_price * 0.01),3)
-                stop_loss = round(close_price+(close_price * 0.005),3) # Up SL to +0.5% of Close (Rasing more than non-trailing for more gains)
-                amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
-        if last_order_side == "'Buy'":
-            if close_price < current_sl:
-                print('close - long - stop loss')
-                close_position(trading_symbol,order_id)
-            if close_price > current_tp:
-                print('Upping TP SL - Long')
-                take_profit = round(close_price+(close_price * 0.01),3)
-                stop_loss = round(close_price-(close_price * 0.005),3) # Up SL to -0.5% of Close (Rasing more than non-trailing for more gains)
-                amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
-        insert_log(trading_symbol,close_price,fast_sma,slow_sma,'na',get_last_cross(),last_order_side,bought_price,0)
+        trailing_sl = trailing_stop_loss(trading_symbol,close_price)
     cur.close()
     conn.close()
     conn = sql.connect('bybit_sma')
