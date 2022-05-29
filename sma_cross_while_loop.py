@@ -15,7 +15,7 @@ cur.execute('CREATE TABLE IF NOT EXISTS take_profit_stop_loss (order_id text, bo
 conn.commit()
 
 session = HTTP("https://api.bybit.com",
-               api_key= sc.API_KEY, api_secret=sc.API_SECRET)
+               api_key= sc.API_KEY, api_secret=sc.API_SECRET,request_timeout=30)
 try:
     session.set_leverage(symbol="SOLUSDT",buy_leverage=1,sell_leverage=1)
 except Exception as e:
@@ -81,6 +81,7 @@ def get_quantity(close_price):
     cur.execute(get_available_bal)
     available_balance = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
     qty = round((available_balance / close_price),1)
+    qty = round(qty - 0.1,2)
     return qty
 
 def get_last_cross():

@@ -81,6 +81,7 @@ def get_quantity(close_price):
     cur.execute(get_available_bal)
     available_balance = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
     qty = round((available_balance / close_price),1)
+    qty = round(qty - 0.1,2)
     return qty
 
 def get_last_cross():
