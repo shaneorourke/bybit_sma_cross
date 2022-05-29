@@ -18,6 +18,7 @@ def sql_out_replace(input,is_string:bool):
 PNL = """select case when sum(closed_pnl) is null then 0 else sum(closed_pnl) end as PNL from Profit_Loss where created_at >= (select min(market_date) from Logs);"""
 cur.execute(PNL)
 Profit_Loss = sql_out_replace(cur.fetchone(),False)
+print('#### Overall Stats ####')
 print(f'Total Profit and Loss:{Profit_Loss}')
 
 TotalTrades = """select count(*) as TotalTrades from Profit_Loss where created_at >= (select min(market_date) from Logs);"""
@@ -54,6 +55,20 @@ Current_Order = """
             round((select last_exec_price from buy_price) - (select close from current_price),3) as PL,
             round((round((select last_exec_price from buy_price) - (select close from current_price),3) / (select last_exec_price from buy_price))*100,3) as PL_Perc
 """
+cur.execute(Current_Order)
+#Current_Order_Stats = sql_out_replace(cur.fetchone(),True)
+Current_Order_Stats = cur.fetchone()
+print()
+print('#### Open Trade ####')
+print(f'Symbol:{Current_Order_Stats[0]}')
+print(f'side:{Current_Order_Stats[1]}')
+print(f'buy_price:{Current_Order_Stats[2]}')
+print(f'take_profit:{Current_Order_Stats[3]}')
+print(f'stop_loss:{Current_Order_Stats[4]}')
+print(f'close:{Current_Order_Stats[5]}')
+print(f'PL:{Current_Order_Stats[6]}')
+print(f'PL%:{Current_Order_Stats[7]}')
+
 
 #OpenTrades = """select count(*) as OpenTrades from Orders o left join Profit_Loss p on o.order_id = p.order_id where p.order_id is null;"""
 #cur.execute(OpenTrades)
