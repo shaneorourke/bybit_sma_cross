@@ -218,8 +218,8 @@ def trailing_stop_loss(trading_symbol,close_price):
             close_position(trading_symbol,order_id)
         if close_price < current_tp:
             print('Upping TP SL - Short')
-            take_profit = round(close_price-(close_price * 0.001),3)
-            stop_loss = round(close_price+(close_price * 0.005),3) # Up SL to +0.5% of Close (Rasing more than non-trailing for more gains)
+            take_profit = round(close_price-(close_price * 0.01),3)
+            stop_loss = round(close_price+(close_price * 0.015),3) # Up SL to +0.5% of Close (Rasing more than non-trailing for more gains)
             amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
     if last_order_side == "'Buy'":
         if close_price < current_sl:
@@ -227,8 +227,8 @@ def trailing_stop_loss(trading_symbol,close_price):
             close_position(trading_symbol,order_id)
         if close_price > current_tp:
             print('Upping TP SL - Long')
-            take_profit = round(close_price+(close_price * 0.001),3)
-            stop_loss = round(close_price-(close_price * 0.005),3) # Up SL to -0.5% of Close (Rasing more than non-trailing for more gains)
+            take_profit = round(close_price+(close_price * 0.01),3)
+            stop_loss = round(close_price-(close_price * 0.015),3) # Up SL to -0.5% of Close (Rasing more than non-trailing for more gains)
             amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
 
     insert_log(trading_symbol,close_price,fast_sma,slow_sma,'na',get_last_cross(),last_order_side,bought_price,0)
