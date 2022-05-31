@@ -300,7 +300,7 @@ def get_trend():
 if __name__ == '__main__':
     trading_symbol = "SOLUSDT"
     interval='60'
-    trailing_stop_take_profit = True
+    trailing_stop_take_profit = False
     candles = get_bybit_bars(trading_symbol,interval,today)
     candles.to_sql(con=conn,name='Candles',if_exists='replace')
     most_recent = candles.iloc[-1]
