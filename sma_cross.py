@@ -227,7 +227,7 @@ def trailing_stop_loss(trading_symbol,close_price):
             close_position(trading_symbol,order_id)
         if close_price > current_tp:
             print('Upping TP SL - Long')
-            take_profit = round(close_price+(close_price * 0.01),3)
+            take_profit = round(close_price+(close_price * 0.001),3)
             stop_loss = round(close_price-(close_price * 0.005),3) # Up SL to -0.5% of Close (Rasing more than non-trailing for more gains)
             amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
 
@@ -300,7 +300,7 @@ def get_trend():
 if __name__ == '__main__':
     trading_symbol = "SOLUSDT"
     interval='60'
-    trailing_stop_take_profit = False
+    trailing_stop_take_profit = True
     candles = get_bybit_bars(trading_symbol,interval,today)
     candles.to_sql(con=conn,name='Candles',if_exists='replace')
     most_recent = candles.iloc[-1]
