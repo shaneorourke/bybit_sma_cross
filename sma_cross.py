@@ -188,8 +188,8 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
         print('LONG')
         buy_sell = 'LONG'
         buy_price = close_price
-        take_profit_var = round(buy_price+(buy_price * 0.01),3) #1%
-        stop_loss_var = round(buy_price-(buy_price * 0.015),3) #-1.5%
+        take_profit_var = round(buy_price+(buy_price * 0.015),3) #1.5% 
+        stop_loss_var = round(buy_price-(buy_price * 0.02),3) #-2%
         quantity = get_quantity(close_price)
         place_order(trading_symbol,"Buy",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit)
 
@@ -198,8 +198,8 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
         print('SHORT')
         buy_sell == 'SHORT'
         buy_price = close_price
-        take_profit_var = round(buy_price-(buy_price * 0.01),3) #1%
-        stop_loss_var = round(buy_price+(buy_price * 0.015),3) #-1.5%
+        take_profit_var = round(buy_price-(buy_price * 0.015),3) #-1.5%
+        stop_loss_var = round(buy_price+(buy_price * 0.02),3) #+2%
         quantity = get_quantity(close_price)
         place_order(trading_symbol,"Sell",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit)
 
@@ -216,20 +216,20 @@ def trailing_stop_loss(trading_symbol,close_price):
         if close_price > current_sl:
             print('close - short - stop loss')
             close_position(trading_symbol,order_id)
-        if close_price < current_tp:
+        if close_price < bought_price:
             print('Upping TP SL - Short')
-            take_profit = round(close_price-(close_price * 0.001),3)
-            stop_loss = round(close_price+(close_price * 0.005),3) # Up SL to +0.5% of Close (Rasing more than non-trailing for more gains)
-            amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
+            stop_loss = round(close_price+(close_price * 0.02),3) # Up SL to +0.5% of Close (Rasing more than non-trailing for more gains)
+            if stop_loss < current_sl:
+                amend_take_profit_stop_loss(order_id,bought_price,current_tp,stop_loss)
     if last_order_side == "'Buy'":
         if close_price < current_sl:
             print('close - long - stop loss')
             close_position(trading_symbol,order_id)
-        if close_price > current_tp:
+        if close_price > bought_price:
             print('Upping TP SL - Long')
-            take_profit = round(close_price+(close_price * 0.001),3)
-            stop_loss = round(close_price-(close_price * 0.005),3) # Up SL to -0.5% of Close (Rasing more than non-trailing for more gains)
-            amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss)
+            stop_loss = round(close_price-(close_price * 0.02),3) # Up SL to -0.5% of Close (Rasing more than non-trailing for more gains)
+            if stop_loss > current_sl:
+                amend_take_profit_stop_loss(order_id,bought_price,current_tp,stop_loss)
 
     insert_log(trading_symbol,close_price,fast_sma,slow_sma,'na',get_last_cross(),last_order_side,bought_price,0)
     
@@ -312,15 +312,12 @@ if __name__ == '__main__':
     user_trade_records = pd.DataFrame(session.user_trade_records(symbol=trading_symbol)['result']['data'])
     user_trade_records.trade_time_ms = pd.to_datetime(user_trade_records.trade_time_ms, unit='ms') + pd.DateOffset(hours=1)
     user_trade_records.to_sql(con=conn,name='User_Trade_Records',if_exists='replace')
-    
     open_position = check_open_position()
     if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
         sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
-
     open_position = check_open_position()
     if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
         sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
-        
     if open_position > 0.0 and trailing_stop_take_profit:
         trailing_sl = trailing_stop_loss(trading_symbol,close_price)
     cur.close()
