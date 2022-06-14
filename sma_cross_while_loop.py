@@ -22,6 +22,7 @@ except Exception as e:
     error = e
 
 now_today = dt.datetime.now()
+now_timestamp = dt.datetime.now()
 now = now_today + dt.timedelta(days=-3)
 today = dt.datetime(now.year, now.month, now.day)
 
@@ -65,13 +66,13 @@ def read_last_log():
 
 def print_Last_log():
     log = read_last_log()
-    print(f'id:{log[0]}')
-    print(f'symbol:{log[1]}')
-    print(f'close:{log[2]}')
-    print(f'fast_sma:{log[3]}')
-    print(f'slow_sma:{log[4]}')
-    print(f'cross:{log[5]}')
-    print(f'last_cross:{log[6]}')
+    print(f'{now_today}:id:{log[0]}')
+    print(f'{now_today}:symbol:{log[1]}')
+    print(f'{now_today}:close:{log[2]}')
+    print(f'{now_today}:fast_sma:{log[3]}')
+    print(f'{now_today}:slow_sma:{log[4]}')
+    print(f'{now_today}:cross:{log[5]}')
+    print(f'{now_today}:last_cross:{log[6]}')
     print()
 
 def get_quantity(close_price):
@@ -183,30 +184,77 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
     buy_price = 0
     sell_price = 0
     last_cross = get_last_cross()
-     
-    if float(fast_sma) > float(slow_sma) and float(close_price) < float(slow_sma):
-        print('LONG')
-        buy_sell = 'LONG'
-        buy_price = close_price
-        take_profit_var = round(buy_price+(buy_price * 0.015),3) #1.5% 
-        stop_loss_var = round(buy_price-(buy_price * 0.02),3) #-2%
-        quantity = get_quantity(close_price)
-        place_order(trading_symbol,"Buy",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit)
 
+    try:
+        cur.execute('select buy_sell,fast_sma, slow_sma from last_order order by timestamp DESC limit 1;')
+        last_results = cur.fetchone()
+        last_buy_sell = last_results[0]
+        last_fast_sma = last_results[1]
+        last_slow_sma = last_results[2]
+    except Exception as E:
+        last_buy_sell = ''
+        last_fast_sma = 0
+        last_slow_sma = 0
 
-    if float(slow_sma) > float(fast_sma) and float(close_price) > float(slow_sma):
-        print('SHORT')
-        buy_sell == 'SHORT'
-        buy_price = close_price
-        take_profit_var = round(buy_price-(buy_price * 0.015),3) #-1.5%
-        stop_loss_var = round(buy_price+(buy_price * 0.02),3) #+2%
-        quantity = get_quantity(close_price)
-        place_order(trading_symbol,"Sell",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit)
+    try:
+        cur.execute('select status from status order by timestamp DESC limit 1;')
+        current_status = cur.fetchone()
+        ready_status = current_status[0]
+    except Exception as E:
+        ready_status = 'ready'
+
+    if float(last_fast_sma) > float(last_slow_sma) and last_buy_sell == 'LONG' and ready_status != 'ready':
+        if float(close_price) > float(fast_sma) or float(slow_sma) > float(fast_sma):
+            waiting_dict = {'status':'ready','timestamp':now_today}
+            status = pd.DataFrame([waiting_dict])
+            status.to_sql(name='status',con=conn,if_exists='replace')
+
+    if float(last_fast_sma) < float(last_slow_sma) and last_buy_sell == 'SHORT' and ready_status != 'ready':
+        if float(close_price) < float(fast_sma) or float(slow_sma) < float(fast_sma):
+            waiting_dict = {'status':'ready','timestamp':now_today}
+            status = pd.DataFrame([waiting_dict])
+            status.to_sql(name='status',con=conn,if_exists='replace')
+    
+    if ready_status == 'ready':
+        if float(fast_sma) > float(slow_sma) and float(close_price) < float(slow_sma):
+            print(f'{now_today}:LONG')
+            buy_sell = 'LONG'
+            buy_price = close_price
+            take_profit_var = round(buy_price+(buy_price * 0.015),3) #1.5% 
+            stop_loss_var = round(buy_price-(buy_price * 0.02),3) #-2%
+            quantity = get_quantity(close_price)
+
+            place_order(trading_symbol,"Buy",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit)
+
+            order_dict = {'buy_sell':buy_sell,'buy_price':buy_price,'fast_sma':fast_sma,'slow_sma':slow_sma,'close_price':close_price,'timestamp':now_today}
+            last_order_df = pd.DataFrame([order_dict])
+            last_order_df.to_sql(name='last_order',con=conn,if_exists='replace')
+
+            waiting_dict = {'status':'waiting'}
+            status = pd.DataFrame([waiting_dict])
+            status.to_sql(name='status',con=conn,if_exists='replace')
+
+        if float(slow_sma) > float(fast_sma) and float(close_price) > float(slow_sma):
+            print(f'{now_today}:SHORT')
+            buy_sell == 'SHORT'
+            buy_price = close_price
+            take_profit_var = round(buy_price-(buy_price * 0.015),3) #-1.5%
+            stop_loss_var = round(buy_price+(buy_price * 0.02),3) #+2%
+            quantity = get_quantity(close_price)
+            place_order(trading_symbol,"Sell",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit)
+
+            order_dict = {'buy_sell':buy_sell,'buy_price':buy_price,'fast_sma':fast_sma,'slow_sma':slow_sma,'close_price':close_price,'timestamp':now_today}
+            last_order_df = pd.DataFrame([order_dict])
+            last_order_df.to_sql(name='last_order',con=conn,if_exists='replace')
+
+            waiting_dict = {'status':'waiting'}
+            status = pd.DataFrame([waiting_dict])
+            status.to_sql(name='status',con=conn,if_exists='replace')
 
     insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price)
 
-def trailing_stop_loss(trading_symbol,close_price):
-    print('Open Position Trailing Stop')
+def trailing_stop_loss(trading_symbol,close_price,fast_sma,slow_sma):
+    print(f'{now_today}:Open Position Trailing Stop')
     order_id = get_last_order(trading_symbol)[0]
     bought_price = get_last_order(trading_symbol)[1]
     last_order_side = get_last_order(trading_symbol)[2]
@@ -214,19 +262,20 @@ def trailing_stop_loss(trading_symbol,close_price):
     current_sl = get_current_tp_sl(order_id)[1]
     if last_order_side == "'Sell'":
         if close_price > current_sl:
-            print('close - short - stop loss')
+            print(f'{now_today}:close - short - stop loss')
             close_position(trading_symbol,order_id)
         if close_price < bought_price:
-            print('Upping TP SL - Short')
+            print(f'{now_today}:Upping TP SL - Short')
             stop_loss = round(close_price+(close_price * 0.02),3) # Up SL to +0.5% of Close (Rasing more than non-trailing for more gains)
             if stop_loss < current_sl:
                 amend_take_profit_stop_loss(order_id,bought_price,current_tp,stop_loss)
+                
     if last_order_side == "'Buy'":
         if close_price < current_sl:
-            print('close - long - stop loss')
+            print(f'{now_today}:close - long - stop loss')
             close_position(trading_symbol,order_id)
         if close_price > bought_price:
-            print('Upping TP SL - Long')
+            print(f'{now_today}:Upping TP SL - Long')
             stop_loss = round(close_price-(close_price * 0.02),3) # Up SL to -0.5% of Close (Rasing more than non-trailing for more gains)
             if stop_loss > current_sl:
                 amend_take_profit_stop_loss(order_id,bought_price,current_tp,stop_loss)
@@ -245,7 +294,7 @@ def get_last_order(trading_symbol):
     return order_id, price, side
 
 def amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss):
-    print('Amending Stop')
+    print(f'{now_today}:Amending Stop')
     order_id = str(order_id).replace("'","")
     cur.execute(f'select count(*) from take_profit_stop_loss where order_id = "{order_id}"')
     row_exists = int(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
@@ -329,5 +378,5 @@ if __name__ == '__main__':
         PandL.created_at = pd.to_datetime(PandL.created_at, unit='s') + pd.DateOffset(hours=1)
         PandL.to_sql(con=conn,name='Profit_Loss',if_exists='replace')
 
-        print(read_last_log())
+        print_Last_log()
         sleep(60)
