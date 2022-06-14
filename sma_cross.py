@@ -368,7 +368,7 @@ if __name__ == '__main__':
     if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
         sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
     if open_position > 0.0 and trailing_stop_take_profit:
-        trailing_sl = trailing_stop_loss(trading_symbol,close_price)
+        trailing_sl = trailing_stop_loss(trading_symbol,close_price,fast_sma,slow_sma)
     cur.close()
     conn.close()
     conn = sql.connect('bybit_sma')
