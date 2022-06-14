@@ -203,14 +203,17 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
     except Exception as E:
         ready_status = 'ready'
 
+    print(f'{now_today}:ready_status:{ready_status}')
     if float(last_fast_sma) > float(last_slow_sma) and last_buy_sell == 'LONG' and ready_status != 'ready':
         if float(close_price) > float(fast_sma) or float(slow_sma) > float(fast_sma):
+            print(f'{now_today}:ready_status change:{ready_status}')
             waiting_dict = {'status':'ready','timestamp':now_today}
             status = pd.DataFrame([waiting_dict])
             status.to_sql(name='status',con=conn,if_exists='replace')
 
     if float(last_fast_sma) < float(last_slow_sma) and last_buy_sell == 'SHORT' and ready_status != 'ready':
         if float(close_price) < float(fast_sma) or float(slow_sma) < float(fast_sma):
+            print(f'{now_today}:ready_status change:{ready_status}')
             waiting_dict = {'status':'ready','timestamp':now_today}
             status = pd.DataFrame([waiting_dict])
             status.to_sql(name='status',con=conn,if_exists='replace')
@@ -376,4 +379,5 @@ if __name__ == '__main__':
     PandL =  pd.DataFrame(session.closed_profit_and_loss(symbol=trading_symbol)['result']['data'])
     PandL.created_at = pd.to_datetime(PandL.created_at, unit='s') + pd.DateOffset(hours=1)
     PandL.to_sql(con=conn,name='Profit_Loss',if_exists='replace')
+    print()
 
