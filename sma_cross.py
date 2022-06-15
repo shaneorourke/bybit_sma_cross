@@ -379,14 +379,18 @@ if __name__ == '__main__':
     user_trade_records = pd.DataFrame(session.user_trade_records(symbol=trading_symbol)['result']['data'])
     user_trade_records.trade_time_ms = pd.to_datetime(user_trade_records.trade_time_ms, unit='ms') + pd.DateOffset(hours=1)
     user_trade_records.to_sql(con=conn,name='User_Trade_Records',if_exists='replace')
-    open_position = check_open_position()
-    if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
-        sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
+    
+    ## Turning off SMA Cross Strategy
+    #open_position = check_open_position()
+    #if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
+    #    sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
+    
     open_position = check_open_position()
     if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
         sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
     if open_position > 0.0 and trailing_stop_take_profit:
         trailing_sl = trailing_stop_loss(trading_symbol,close_price,fast_sma,slow_sma)
+
     cur.close()
     conn.close()
     conn = sql.connect('bybit_sma')
