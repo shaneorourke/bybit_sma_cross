@@ -193,6 +193,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
         last_slow_sma = last_results[2]
     except Exception as E:
         print(f'{now_today}:last_results exception:')
+        print(E)
         last_buy_sell = ''
         last_fast_sma = 0
         last_slow_sma = 0
@@ -204,6 +205,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
     except Exception as E:
         ready_status = 'ready'
         print(f'{now_today}:ready_status exception change:{ready_status}')
+        print(E)
 
     print(f'{now_today}:ready_status:{ready_status}')
     if float(last_fast_sma) > float(last_slow_sma) and last_buy_sell == 'LONG' and ready_status != 'ready':
