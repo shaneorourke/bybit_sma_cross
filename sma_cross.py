@@ -276,7 +276,7 @@ def trailing_stop_loss(trading_symbol,close_price,fast_sma,slow_sma):
     print(f'{now_today}:order_id:{order_id}')
 
     bought_price = get_last_order(trading_symbol)[1]
-    print(f'{now_today}:order_id:{order_id}')
+    print(f'{now_today}:bought_price:{bought_price}')
 
     last_order_side = get_last_order(trading_symbol)[2]
     print(f'{now_today}:last_order_side:{last_order_side}')
@@ -323,9 +323,9 @@ def get_last_order(trading_symbol):
 def amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss):
     print(f'{now_today}:Amending Stop')
     print(f'{now_today}:order_id:{order_id}')
-    print(f'{now_today}:order_id:{bought_price}')
-    print(f'{now_today}:order_id:{take_profit}')
-    print(f'{now_today}:order_id:{stop_loss}')
+    print(f'{now_today}:bought_price:{bought_price}')
+    print(f'{now_today}:take_profit:{take_profit}')
+    print(f'{now_today}:stop_loss:{stop_loss}')
     order_id = str(order_id).replace("'","")
     cur.execute(f'select count(*) from take_profit_stop_loss where order_id = "{order_id}"')
     row_exists = int(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
