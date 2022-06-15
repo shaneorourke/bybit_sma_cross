@@ -238,7 +238,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
             last_order_df.to_sql(name='last_order',con=conn,if_exists='replace')
 
             print(f'{now_today}:ready_status change:waiting')
-            waiting_dict = {'status':'waiting'}
+            waiting_dict = {'status':'waiting','timestamp':now_today}
             status = pd.DataFrame([waiting_dict])
             status.to_sql(name='status',con=conn,if_exists='replace')
 
@@ -256,7 +256,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
             last_order_df.to_sql(name='last_order',con=conn,if_exists='replace')
 
             print(f'{now_today}:ready_status change:waiting')
-            waiting_dict = {'status':'waiting'}
+            waiting_dict = {'status':'waiting','timestamp':now_today}
             status = pd.DataFrame([waiting_dict])
             status.to_sql(name='status',con=conn,if_exists='replace')
 
