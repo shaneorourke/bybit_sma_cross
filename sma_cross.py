@@ -47,6 +47,11 @@ def insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy
     cur.execute(insert_query)
     conn.commit()
 
+def constant_log(time_stamp,field,value):
+    log_dict={'time_stamp':time_stamp,'field':field,'value':value}
+    df = pd.DataFrame([log_dict])
+    df.to_sql(name='constant_log',con=conn,if_exists='append')
+
 def read_last_log():
     query = 'SELECT id,symbol,close,fast_sma,slow_sma,cross,last_cross,market_date,buy_sell,buy_price,sell_price FROM logs ORDER BY id DESC LIMIT 1 '
     cur.execute(query)
@@ -203,21 +208,15 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
         current_status = cur.fetchone()
         ready_status = current_status[0]
     except Exception as E:
-        ready_status = 'ready'
+        ready_status = ''
         print(f'{now_today}:ready_status exception change:{ready_status}')
         print(E)
 
     print(f'{now_today}:ready_status:{ready_status}')
-    #delete this after working: FROM HERE
-    if float(last_fast_sma) > float(last_slow_sma):
-        last_buy_sell = 'LONG'
-    if float(last_fast_sma) < float(last_slow_sma):
-        last_buy_sell = 'SHORT'
-    #delete: TO HERE
 
     if float(last_fast_sma) > float(last_slow_sma) and last_buy_sell == 'LONG' and ready_status != 'ready':
         print(f'Stage 1 ready Status Change - LONG')
-        if float(close_price) > float(slow_sma) or float(slow_sma) > float(fast_sma):
+        if float(close_price) > float(fast_sma) or float(slow_sma) > float(fast_sma):
             print(f'{now_today}:ready_status change:{ready_status}')
             waiting_dict = {'status':'ready','timestamp':now_today}
             status = pd.DataFrame([waiting_dict])
@@ -225,7 +224,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
 
     if float(last_fast_sma) < float(last_slow_sma) and last_buy_sell == 'SHORT' and ready_status != 'ready':
         print(f'Stage 1 ready Status Change - SHORT')
-        if float(close_price) < float(slow_sma) or float(slow_sma) < float(fast_sma):
+        if float(close_price) < float(fast_sma) or float(slow_sma) < float(fast_sma):
             print(f'{now_today}:ready_status change:{ready_status}')
             waiting_dict = {'status':'ready','timestamp':now_today}
             status = pd.DataFrame([waiting_dict])
@@ -313,6 +312,10 @@ def get_last_order(trading_symbol):
 
 def amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss):
     print(f'{now_today}:Amending Stop')
+    print(f'{now_today}:order_id:{order_id}')
+    print(f'{now_today}:order_id:{bought_price}')
+    print(f'{now_today}:order_id:{take_profit}')
+    print(f'{now_today}:order_id:{stop_loss}')
     order_id = str(order_id).replace("'","")
     cur.execute(f'select count(*) from take_profit_stop_loss where order_id = "{order_id}"')
     row_exists = int(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
@@ -323,6 +326,7 @@ def amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss):
     conn.commit()
 
 def get_current_tp_sl(order_id):
+    print(f'{now_today}:get_current_tp_sl:{order_id}')
     cur.execute(f'select current_take_profit from take_profit_stop_loss where order_id = {order_id}')
     tp = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
     cur.execute(f'select current_stop_loss from take_profit_stop_loss where order_id = {order_id}')
