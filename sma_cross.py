@@ -217,7 +217,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
     if float(last_fast_sma) > float(last_slow_sma) and last_buy_sell == 'LONG' and ready_status != 'ready':
         print(f'Stage 1 ready Status Change - LONG')
         if float(close_price) > float(fast_sma) or float(slow_sma) > float(fast_sma):
-            print(f'{now_today}:ready_status change:{ready_status}')
+            print(f'{now_today}:ready_status change:ready')
             waiting_dict = {'status':'ready','timestamp':now_today}
             status = pd.DataFrame([waiting_dict])
             status.to_sql(name='status',con=conn,if_exists='replace')
@@ -225,7 +225,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
     if float(last_fast_sma) < float(last_slow_sma) and last_buy_sell == 'SHORT' and ready_status != 'ready':
         print(f'Stage 1 ready Status Change - SHORT')
         if float(close_price) < float(fast_sma) or float(slow_sma) < float(fast_sma):
-            print(f'{now_today}:ready_status change:{ready_status}')
+            print(f'{now_today}:ready_status change:ready')
             waiting_dict = {'status':'ready','timestamp':now_today}
             status = pd.DataFrame([waiting_dict])
             status.to_sql(name='status',con=conn,if_exists='replace')
@@ -273,10 +273,20 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
 def trailing_stop_loss(trading_symbol,close_price,fast_sma,slow_sma):
     print(f'{now_today}:Open Position Trailing Stop')
     order_id = get_last_order(trading_symbol)[0]
+    print(f'{now_today}:order_id:{order_id}')
+
     bought_price = get_last_order(trading_symbol)[1]
+    print(f'{now_today}:order_id:{order_id}')
+
     last_order_side = get_last_order(trading_symbol)[2]
+    print(f'{now_today}:last_order_side:{last_order_side}')
+
     current_tp = get_current_tp_sl(order_id)[0]
+    print(f'{now_today}:current_tp:{current_tp}')
+
     current_sl = get_current_tp_sl(order_id)[1]
+    print(f'{now_today}:current_sl:{current_sl}')
+    
     if last_order_side == "'Sell'":
         if close_price > current_sl:
             print(f'{now_today}:close - short - stop loss')
