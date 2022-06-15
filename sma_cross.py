@@ -201,7 +201,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
     try:
         cur.execute('select status from status order by timestamp DESC limit 1;')
         current_status = cur.fetchone()
-        ready_status = current_status
+        ready_status = current_status[0]
     except Exception as E:
         ready_status = 'ready'
         print(f'{now_today}:ready_status exception change:{ready_status}')
