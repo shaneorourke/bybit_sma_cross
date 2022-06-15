@@ -209,14 +209,14 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
 
     print(f'{now_today}:ready_status:{ready_status}')
     if float(last_fast_sma) > float(last_slow_sma) and last_buy_sell == 'LONG' and ready_status != 'ready':
-        if float(close_price) > float(fast_sma) or float(slow_sma) > float(fast_sma):
+        if float(close_price) > float(slow_sma) or float(slow_sma) > float(fast_sma):
             print(f'{now_today}:ready_status change:{ready_status}')
             waiting_dict = {'status':'ready','timestamp':now_today}
             status = pd.DataFrame([waiting_dict])
             status.to_sql(name='status',con=conn,if_exists='replace')
 
     if float(last_fast_sma) < float(last_slow_sma) and last_buy_sell == 'SHORT' and ready_status != 'ready':
-        if float(close_price) < float(fast_sma) or float(slow_sma) < float(fast_sma):
+        if float(close_price) < float(slow_sma) or float(slow_sma) < float(fast_sma):
             print(f'{now_today}:ready_status change:{ready_status}')
             waiting_dict = {'status':'ready','timestamp':now_today}
             status = pd.DataFrame([waiting_dict])
