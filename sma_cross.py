@@ -212,6 +212,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
     print(f'last_slow_sma:{float(last_slow_sma)}')
     print(f'last_buy_sell:{last_buy_sell}')
     if float(last_fast_sma) > float(last_slow_sma) and last_buy_sell == 'LONG' and ready_status != 'ready':
+        print(f'Stage 1 ready Status Change - LONG')
         if float(close_price) > float(slow_sma) or float(slow_sma) > float(fast_sma):
             print(f'{now_today}:ready_status change:{ready_status}')
             waiting_dict = {'status':'ready','timestamp':now_today}
@@ -219,6 +220,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
             status.to_sql(name='status',con=conn,if_exists='replace')
 
     if float(last_fast_sma) < float(last_slow_sma) and last_buy_sell == 'SHORT' and ready_status != 'ready':
+        print(f'Stage 1 ready Status Change - SHORT')
         if float(close_price) < float(slow_sma) or float(slow_sma) < float(fast_sma):
             print(f'{now_today}:ready_status change:{ready_status}')
             waiting_dict = {'status':'ready','timestamp':now_today}
@@ -247,7 +249,7 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
 
         if float(slow_sma) > float(fast_sma) and float(close_price) > float(slow_sma):
             print(f'{now_today}:SHORT')
-            buy_sell == 'SHORT'
+            buy_sell = 'SHORT'
             buy_price = close_price
             take_profit_var = round(buy_price-(buy_price * 0.015),3) #-1.5%
             stop_loss_var = round(buy_price+(buy_price * 0.02),3) #+2%
