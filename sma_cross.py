@@ -208,6 +208,9 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
         print(E)
 
     print(f'{now_today}:ready_status:{ready_status}')
+    print(f'last_fast_sma:{float(last_fast_sma)}')
+    print(f'last_slow_sma:{float(last_slow_sma)}')
+    print(f'last_buy_sell:{last_buy_sell}')
     if float(last_fast_sma) > float(last_slow_sma) and last_buy_sell == 'LONG' and ready_status != 'ready':
         if float(close_price) > float(slow_sma) or float(slow_sma) > float(fast_sma):
             print(f'{now_today}:ready_status change:{ready_status}')
