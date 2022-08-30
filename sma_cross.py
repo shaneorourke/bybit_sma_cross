@@ -345,7 +345,6 @@ def stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previo
 def stock_macd_exit_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline):
     order_id = get_last_order(trading_symbol)[0]
     last_order_side = get_last_order(trading_symbol)[2]
-    print(f'last_order_side:[{last_order_side}]')
     if last_order_side == "'Buy'":
         if macd < 0 or kline > 80 or kline <= 20:
             close_position(trading_symbol,order_id)
@@ -476,7 +475,6 @@ if __name__ == '__main__':
     #    sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
     #if open_position > 0.0 and trailing_stop_take_profit:
     #    trailing_sl = trailing_stop_loss(trading_symbol,close_price,fast_sma,slow_sma)
-    print(f'open_position:[{open_position}]')
     previous_close = candles.iloc[-2]
     previous_kline = previous_close['%K']
     if not open_position > 0.0:
