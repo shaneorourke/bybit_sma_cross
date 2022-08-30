@@ -1,2 +1,3 @@
 pybit
 pandas
+ta
