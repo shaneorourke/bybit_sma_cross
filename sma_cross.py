@@ -10,8 +10,8 @@ from pytz import HOUR
 
 conn = sql.connect('bybit_sma')
 cur = conn.cursor()
-cur.execute('CREATE TABLE IF NOT EXISTS Logs (id integer PRIMARY KEY AUTOINCREMENT, symbol text, close decimal, fast_sma decimal, slow_sma decimal, cross text, last_cross text, buy_sell text, buy_price decimal, sell_price decimal, kline decimal, dline decimal, macd decimal, previous_kline decimal, market_date timestamp DEFAULT current_timestamp)')
-cur.execute('INSERT OR REPLACE INTO Logs (id,symbol,close,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price,kline,dline,macd,previous_kline) VALUES (1,NULL,0,0,0,"wait","na","na",0,0,0,0,0,0)')
+cur.execute('CREATE TABLE IF NOT EXISTS Logs (id integer PRIMARY KEY AUTOINCREMENT, symbol text, close decimal, fast_sma decimal, slow_sma decimal, cross text, last_cross text, buy_sell text, buy_price decimal, sell_price decimal, kline decimal, dline decimal, macd decimal, previous_kline decimal, previous_previous_kline decimal, market_date timestamp DEFAULT current_timestamp)')
+cur.execute('INSERT OR REPLACE INTO Logs (id,symbol,close,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price,kline,dline,macd,previous_kline,previous_previous_kline) VALUES (1,NULL,0,0,0,"wait","na","na",0,0,0,0,0,0,0)')
 cur.execute('CREATE TABLE IF NOT EXISTS take_profit_stop_loss (order_id text, bought_price real, current_take_profit real, current_stop_loss real)')
 conn.commit()
 
@@ -46,10 +46,10 @@ def get_bybit_bars(trading_symbol, interval, startTime):
     applytechnicals(df)
     return df
 
-def insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price,kline,dline,macd,previous_kline):
+def insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price,kline,dline,macd,previous_kline,previous_previous_kline):
     if str(buy_sell).upper() not in ('LONG','SHORT'):
         buy_sell == None
-    insert_query = f'INSERT INTO Logs (symbol,close,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price,kline,dline,macd,previous_kline) VALUES ("{trading_symbol}",{close_price},{fast_sma},{slow_sma},"{cross}","{last_cross}","{buy_sell}",{buy_price},{sell_price},{kline},{dline},{macd},{previous_kline})'
+    insert_query = f'INSERT INTO Logs (symbol,close,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price,kline,dline,macd,previous_kline,previous_previous_kline) VALUES ("{trading_symbol}",{close_price},{fast_sma},{slow_sma},"{cross}","{last_cross}","{buy_sell}",{buy_price},{sell_price},{kline},{dline},{macd},{previous_kline},{previous_previous_kline})'
     cur.execute(insert_query)
     conn.commit()
 
@@ -163,7 +163,7 @@ def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_sto
             quantity = get_quantity(close_price)
             place_order(trading_symbol,"Buy",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit,stock_trade)
 
-        insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price,0,0,0,0)
+        insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price,0,0,0,0,0)
 
 def amend_take_profit_stop_loss(order_id,bought_price,take_profit,stop_loss):
     print(f'{now_today}:Amending Stop')
@@ -308,9 +308,9 @@ def sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_st
             status = pd.DataFrame([waiting_dict])
             status.to_sql(name='status',con=conn,if_exists='replace')
 
-    insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price,0,0,0,0)
+    insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price,0,0,0,0,0)
 
-def stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline):
+def stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline,previous_previous_kline):
     # Buy when: MACD > 0 and kline crosses UP 20
     # Sell when: MACD < 0 and kline crosses DOWN 80
     enter = False
@@ -318,11 +318,11 @@ def stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previo
     trailing_stop_take_profit = False
     buy_sell = 'na'
     buy_price = 0
-    if macd > 0 and kline > 20 and previous_kline < 20:
+    if macd > 0 and kline > 20 and (previous_kline < 20 or previous_previous_kline < 20):
         enter = True
         buy_sell = "Buy"
         print(f'{now_today}:MACD,kline,dline ON for LONG')
-    if macd < 0 and kline < 80 and previous_kline > 80:
+    if macd < 0 and kline < 80 and (previous_kline > 80 or previous_previous_kline > 80):
         enter = True
         buy_sell = "Sell"
         print(f'{now_today}:MACD,kline,dline ON for SHORT')
@@ -338,7 +338,7 @@ def stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previo
         buy_sell_log = 'LONG'
     if buy_sell == 'na':
         buy_sell_log = None
-    insert_log(trading_symbol,close_price,0,0,'na',get_last_cross(),buy_sell_log,buy_price,0,kline,dline,macd,previous_kline)
+    insert_log(trading_symbol,close_price,0,0,'na',get_last_cross(),buy_sell_log,buy_price,0,kline,dline,macd,previous_kline,previous_previous_kline)
     
 
 
@@ -389,7 +389,7 @@ def trailing_stop_loss(trading_symbol,close_price,fast_sma,slow_sma):
             if stop_loss > current_sl:
                 amend_take_profit_stop_loss(order_id,bought_price,current_tp,stop_loss)
 
-    insert_log(trading_symbol,close_price,fast_sma,slow_sma,'na',get_last_cross(),last_order_side,bought_price,0,0,0,0,0)
+    insert_log(trading_symbol,close_price,fast_sma,slow_sma,'na',get_last_cross(),last_order_side,bought_price,0,0,0,0,0,0)
     
     return bought_price, last_order_side
 
@@ -477,11 +477,13 @@ if __name__ == '__main__':
     #    trailing_sl = trailing_stop_loss(trading_symbol,close_price,fast_sma,slow_sma)
     previous_close = candles.iloc[-2]
     previous_kline = previous_close['%K']
+    previous_previous_close = candles.iloc[-3]
+    previous_previous_kline = previous_previous_close['%K']
     if not open_position > 0.0:
-        stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline)
+        stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline,previous_previous_kline)
 
     if open_position > 0.0:
-        stock_macd_exit_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline)
+        stock_macd_exit_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline,previous_previous_kline)
 
     cur.close()
     conn.close()
