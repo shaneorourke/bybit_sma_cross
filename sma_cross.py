@@ -342,15 +342,20 @@ def stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previo
     
 
 
-def stock_macd_exit_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline):
+def stock_macd_exit_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline,previous_previous_kline):
     order_id = get_last_order(trading_symbol)[0]
+    print(f'{now_timestamp}:order_id:{order_id}')
     last_order_side = get_last_order(trading_symbol)[2]
+    print(f'{now_timestamp}:last_order_side:{last_order_side}')
+    bought_price = get_last_order(trading_symbol)[1]
+    print(f'{now_timestamp}:bought_price:{bought_price}')
     if last_order_side == "'Buy'":
         if macd < 0 or kline > 80 or kline <= 20:
             close_position(trading_symbol,order_id)
     if last_order_side == "'Sell'":
         if macd > 0 and kline < 20 or kline >= 80:
             close_position(trading_symbol,order_id)
+    insert_log(trading_symbol,close_price,0,0,'na',get_last_cross(),last_order_side,bought_price,0,kline,dline,macd,previous_kline,previous_previous_kline)
 
 def trailing_stop_loss(trading_symbol,close_price,fast_sma,slow_sma):
     print(f'{now_today}:Open Position Trailing Stop')
@@ -479,6 +484,7 @@ if __name__ == '__main__':
     previous_kline = previous_close['%K']
     previous_previous_close = candles.iloc[-3]
     previous_previous_kline = previous_previous_close['%K']
+    print(f'{now_timestamp}:open position:{open_position}')
     if not open_position > 0.0:
         stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline,previous_previous_kline)
 
