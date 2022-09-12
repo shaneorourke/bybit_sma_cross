@@ -44,7 +44,6 @@ def get_bybit_bars(trading_symbol, interval, startTime):
 
 def check_open_position():
     position = pd.DataFrame(session.my_position(symbol=trading_symbol)['result'])
-    position.to_sql(con=conn,name='Position',if_exists='replace')
     open_position = position[position.columns[0]].count()
     cur.execute(f'select sum(size) from Position')
     open_position = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
@@ -113,7 +112,6 @@ if __name__ == '__main__':
     interval='60'
     trailing_stop_take_profit = True
     candles = get_bybit_bars(trading_symbol,interval,today)
-    candles.to_sql(con=conn,name='Candles',if_exists='replace')
     most_recent = candles.iloc[-1]
     close_price = most_recent.close
     fast_sma = most_recent.FastSMA
@@ -122,12 +120,6 @@ if __name__ == '__main__':
     dline = most_recent['%D']
     rsi = most_recent['rsi']
     macd = most_recent['macd']
-    orders = pd.DataFrame(session.get_active_order(symbol=trading_symbol)['result']['data'])
-    orders.to_sql(con=conn,name='Orders',if_exists='replace')
-    user_trade_records = pd.DataFrame(session.user_trade_records(symbol=trading_symbol)['result']['data'])
-    user_trade_records.trade_time_ms = pd.to_datetime(user_trade_records.trade_time_ms, unit='ms') + pd.DateOffset(hours=1)
-    user_trade_records.to_sql(con=conn,name='User_Trade_Records',if_exists='replace')
-
     ## Turning off SMA Cross Strategy
     #open_position = check_open_position()
     #if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
