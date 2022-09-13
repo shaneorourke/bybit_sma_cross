@@ -318,11 +318,13 @@ def stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previo
     trailing_stop_take_profit = False
     buy_sell = 'na'
     buy_price = 0
-    if macd > 0 and kline > 20 and (previous_kline < 20 or previous_previous_kline < 20):
+    #if macd > 0 and kline > 20 and (previous_kline < 20 or previous_previous_kline < 20):
+    if macd > 0 and kline > 20 and previous_kline < 20:
         enter = True
         buy_sell = "Buy"
         print(f'{now_today}:MACD,kline,dline ON for LONG')
-    if macd < 0 and kline < 80 and (previous_kline > 80 or previous_previous_kline > 80):
+    #if macd < 0 and kline < 80 and (previous_kline > 80 or previous_previous_kline > 80):
+    if macd < 0 and kline < 80 and previous_kline > 80:
         enter = True
         buy_sell = "Sell"
         print(f'{now_today}:MACD,kline,dline ON for SHORT')
@@ -484,7 +486,7 @@ if __name__ == '__main__':
     previous_kline = previous_close['%K']
     previous_previous_close = candles.iloc[-3]
     previous_previous_kline = previous_previous_close['%K']
-    print(f'{now_timestamp}:open position:{open_position}')
+    print(f'open position:{open_position}')
     if not open_position > 0.0:
         stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline,previous_previous_kline)
 

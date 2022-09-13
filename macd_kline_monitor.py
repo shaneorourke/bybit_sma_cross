@@ -72,17 +72,20 @@ def stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previo
         if kline > 20:
             kline_dif = 20 - kline
             print(f'kline:{kline} needs to drop:{kline_dif}')
-        if kline < 20 and (previous_kline > 20 or previous_previous_kline > 20):
+        #if kline < 20 and (previous_kline > 20 or previous_previous_kline > 20):
+        if kline < 20 and previous_kline > 20:
             if previous_kline > 20:
                 previous_kline_dif = 20 - previous_kline
                 print(f'previous_kline:{previous_kline} needs to drop:{previous_kline_dif}')
-            if previous_previous_kline > 20:
-                previous_previous_kline_dif = 20 - previous_previous_kline
-                print(f'previous_previous_kline:{previous_previous_kline} needs to drop:{previous_previous_kline_dif}')
-        if kline <= 20 and not (previous_kline > 20 or previous_previous_kline > 20):
+            #if previous_previous_kline > 20:
+            #    previous_previous_kline_dif = 20 - previous_previous_kline
+            #    print(f'previous_previous_kline:{previous_previous_kline} needs to drop:{previous_previous_kline_dif}')
+        #if kline <= 20 and not (previous_kline > 20 or previous_previous_kline > 20):
+        if kline <= 20 and not previous_kline > 20:
             kline_dif = 20 - kline
             print(f'kline:{kline} needs to rise:{kline_dif}')
-        if kline > 20 and (previous_kline < 20 or previous_previous_kline < 20):
+        #if kline > 20 and (previous_kline < 20 or previous_previous_kline < 20):
+        if kline > 20 and previous_kline < 20:
             print('BUY SIGNAL ON! GO LONG')
     if macd < 0:
         print(f'SELL SIGNAL (MACD < 0 and KLINE crosses UNDER 80)')
@@ -90,17 +93,20 @@ def stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previo
         if kline < 80:
             kline_dif = 80 - kline
             print(f'kline:{kline} needs to rise:{kline_dif}')
-        if kline > 80 and (previous_kline < 80 or previous_previous_kline < 80):
+        #if kline > 80 and (previous_kline < 80 or previous_previous_kline < 80):
+        if kline > 80 and previous_kline < 80:
             if previous_kline < 80:
                 previous_kline_dif = 80 - previous_kline
                 print(f'previous_kline:{previous_kline} needs to rise:{previous_kline_dif}')
-            if previous_previous_kline < 80:
-                previous_previous_kline_dif = 80 - previous_previous_kline
-                print(f'previous_previous_kline:{previous_previous_kline} needs to rise:{previous_previous_kline_dif}')
-        if kline >= 80 and not (previous_kline < 80 or previous_previous_kline < 80):
+            #if previous_previous_kline < 80:
+            #    previous_previous_kline_dif = 80 - previous_previous_kline
+            #    print(f'previous_previous_kline:{previous_previous_kline} needs to rise:{previous_previous_kline_dif}')
+        #if kline >= 80 and not (previous_kline < 80 or previous_previous_kline < 80):
+        if kline >= 80 and not previous_kline < 80:
             kline_dif = 80 - kline
             print(f'kline:{kline} needs to drop:{kline_dif}')
-        if kline < 80 and (previous_kline > 80 or previous_previous_kline > 80):
+        #if kline < 80 and (previous_kline > 80 or previous_previous_kline > 80):
+        if kline < 80 and previous_kline > 80:
             print('SELL SIGNAL ON! GO SHORT')
     if kline > previous_kline:
         print('kline rising')
