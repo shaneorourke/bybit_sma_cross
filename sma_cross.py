@@ -144,8 +144,9 @@ def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_sto
         sell_price = 0
         last_cross = get_last_cross()
         stock_trade = False
+        trend = get_trend()
         
-        if last_cross == 'down' and cross == 'up':
+        if last_cross == 'down' and cross == 'up' and trend == 'up':
             print(f'{now_today}:LONG')
             buy_sell = 'LONG'
             buy_price = close_price
@@ -154,7 +155,7 @@ def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_sto
             quantity = get_quantity(close_price)
             place_order(trading_symbol,"Buy",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit,stock_trade)
 
-        if last_cross == 'up' and cross == 'down':
+        if last_cross == 'up' and cross == 'down' and trend == 'down':
             print(f'{now_today}:SHORT')
             buy_sell == 'SHORT'
             buy_price = close_price
@@ -473,25 +474,25 @@ if __name__ == '__main__':
     user_trade_records.to_sql(con=conn,name='User_Trade_Records',if_exists='replace')
 
     ## Turning off SMA Cross Strategy
+    open_position = check_open_position()
+    if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
+        sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
+
     #open_position = check_open_position()
     #if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
-    #    sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
-
-    open_position = check_open_position()
-    #if not open_position > 0.0: #If a position is NOT open, e.g. not open else wait for tp and sl
     #    sma_bounce_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_stop_take_profit)
-    #if open_position > 0.0 and trailing_stop_take_profit:
-    #    trailing_sl = trailing_stop_loss(trading_symbol,close_price,fast_sma,slow_sma)
-    previous_close = candles.iloc[-2]
-    previous_kline = previous_close['%K']
-    previous_previous_close = candles.iloc[-3]
-    previous_previous_kline = previous_previous_close['%K']
-    print(f'open position:{open_position}')
-    if not open_position > 0.0:
-        stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline,previous_previous_kline)
-
-    if open_position > 0.0:
-        stock_macd_exit_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline,previous_previous_kline)
+    if open_position > 0.0 and trailing_stop_take_profit:
+        trailing_sl = trailing_stop_loss(trading_symbol,close_price,fast_sma,slow_sma)
+    #previous_close = candles.iloc[-2]
+    #previous_kline = previous_close['%K']
+    #previous_previous_close = candles.iloc[-3]
+    #previous_previous_kline = previous_previous_close['%K']
+    #print(f'open position:{open_position}')
+    #if not open_position > 0.0:
+    #    stock_macd_entry_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline,previous_previous_kline)
+#
+    #if open_position > 0.0:
+    #    stock_macd_exit_strategy(trading_symbol,close_price,macd,kline,dline,previous_kline,previous_previous_kline)
 
     cur.close()
     conn.close()
@@ -500,4 +501,3 @@ if __name__ == '__main__':
     PandL =  pd.DataFrame(session.closed_profit_and_loss(symbol=trading_symbol)['result']['data'])
     PandL.created_at = pd.to_datetime(PandL.created_at, unit='s') + pd.DateOffset(hours=1)
     PandL.to_sql(con=conn,name='Profit_Loss',if_exists='replace')
-    print()
