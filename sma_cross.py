@@ -429,6 +429,7 @@ def get_current_tp_sl(order_id):
             sl = round(get_last_order(trading_symbol)[1]-(get_last_order(trading_symbol)[1] * 0.02),3)
         if get_last_order(trading_symbol)[2] == "'Sell'":
             sl = round(get_last_order(trading_symbol)[1]+(get_last_order(trading_symbol)[1] * 0.02),3)
+        amend_take_profit_stop_loss(get_last_order(trading_symbol)[0],get_last_order(trading_symbol)[1],tp,sl)
     conn.commit()
     return tp, sl
 
