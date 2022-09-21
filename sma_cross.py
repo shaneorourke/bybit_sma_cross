@@ -413,9 +413,22 @@ def get_last_order(trading_symbol):
 def get_current_tp_sl(order_id):
     print(f'{now_today}:get_current_tp_sl:{order_id}')
     cur.execute(f'select current_take_profit from take_profit_stop_loss where order_id = {order_id}')
-    tp = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
+    tp_str = str(cur.fetchone()).replace('(','').replace(')','').replace(',','')
+    if tp_str != None and tp_str != 'None':
+        tp = float(tp_str)
+    else:
+        print(f'{now_today}:No current_take_profit in take_profit_stop_loss')
+        tp = get_last_order(trading_symbol)[1]
     cur.execute(f'select current_stop_loss from take_profit_stop_loss where order_id = {order_id}')
-    sl = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
+    sl_str = str(cur.fetchone()).replace('(','').replace(')','').replace(',','')
+    if sl_str != None and sl_str != 'None':
+        sl = float(sl_str)
+    else:
+        print(f'{now_today}:No current_take_profit in take_profit_stop_loss')
+        if get_last_order(trading_symbol)[2] == "'Buy'": 
+            sl = round(get_last_order(trading_symbol)[1]-(get_last_order(trading_symbol)[1] * 0.02),3)
+        if get_last_order(trading_symbol)[2] == "'Sell'":
+            sl = round(get_last_order(trading_symbol)[1]+(get_last_order(trading_symbol)[1] * 0.02),3)
     conn.commit()
     return tp, sl
 
