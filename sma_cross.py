@@ -37,13 +37,14 @@ def applytechnicals(df):
     df.dropna(inplace=True)
     return df
 
-def get_bybit_bars(trading_symbol, interval, startTime):
+def get_bybit_bars(trading_symbol, interval, startTime, apply_technicals):
     startTime = str(int(startTime.timestamp()))
     response = session.query_kline(symbol=trading_symbol,interval=interval,from_time=startTime)
     df = pd.DataFrame(response['result'])
     df.start_at = pd.to_datetime(df.start_at, unit='s') + pd.DateOffset(hours=1)
     df.open_time = pd.to_datetime(df.open_time, unit='s') + pd.DateOffset(hours=1)
-    applytechnicals(df)
+    if apply_technicals:
+        applytechnicals(df)
     return df
 
 def insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price,kline,dline,macd,previous_kline,previous_previous_kline):
@@ -144,7 +145,7 @@ def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_sto
         sell_price = 0
         last_cross = get_last_cross()
         stock_trade = False
-        trend = str(get_trend()).replace("'","")
+        trend = str(get_trend(trading_symbol)).replace("'","")
         
         if last_cross == 'down' and cross == 'up' and trend == 'up':
             print(f'{now_today}:LONG')
@@ -446,22 +447,17 @@ def check_open_position():
     open_position = float(str(cur.fetchone()).replace('(','').replace(')','').replace(',',''))
     return open_position
 
-def get_trend():
-    ## Currently unused
-    trend_query = """with first_row as (select "index",id,close,FastSMA,SlowSMA 
-                            from Candles
-                            where FastSMA is not null and SlowSMA is not null)
-        , second_row as (select "index",id,close,FastSMA,SlowSMA
-                            from Candles
-                            where FastSMA is not null and SlowSMA is not null)
-        , trend as (select case when fr.SlowSMA < sr.SlowSMA then 'down' when fr.SlowSMA > sr.SlowSMA then 'up' else 'undetermined' end as trend from first_row fr 
-                    inner join second_row sr
-                    on fr."index" = sr."index"+1)
-        , overall_trend as (select trend, count(trend) trend_count from trend t
-                    group by trend)
-        select trend from overall_trend
-        order by trend_count DESC
-        limit 1;"""
+def get_trend(trading_symbol):
+    trend_start_date = now_today + dt.timedelta(days=-120)
+    trend_start_date = dt.datetime(trend_start_date.year, trend_start_date.month, trend_start_date.day)
+    interval='D'
+    trend_candles = get_bybit_bars(trading_symbol,interval,trend_start_date,False)
+    trend_candles.to_sql(con=conn,name='trend',if_exists='replace')
+    trend_query = """with first_row as (select "index",id,close from trend)
+                    , second_row as (select "index",id,close from trend)
+                    , trend_cte as (select case when fr.close < sr.close then 'down' when fr.close > sr.close then 'up' else 'undetermined' end as trend from first_row fr inner join second_row sr on fr."index" = sr."index"+1)
+                    , overall_trend as (select trend, count(trend) trend_count from trend_cte t group by trend)
+                    select trend from overall_trend order by trend_count DESC limit 1;"""
     cur.execute(trend_query)
     trend = str(cur.fetchone()).replace('(','').replace(')','').replace(',','')
     return trend
@@ -471,7 +467,7 @@ if __name__ == '__main__':
     trading_symbol = "SOLUSDT"
     interval='60'
     trailing_stop_take_profit = True
-    candles = get_bybit_bars(trading_symbol,interval,today)
+    candles = get_bybit_bars(trading_symbol,interval,today,True)
     candles.to_sql(con=conn,name='Candles',if_exists='replace')
     most_recent = candles.iloc[-1]
     close_price = most_recent.close
