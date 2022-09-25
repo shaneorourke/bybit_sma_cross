@@ -144,7 +144,7 @@ def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_sto
         sell_price = 0
         last_cross = get_last_cross()
         stock_trade = False
-        trend = get_trend()
+        trend = str(get_trend()).replace("'","")
         
         if last_cross == 'down' and cross == 'up' and trend == 'up':
             print(f'{now_today}:LONG')
