@@ -146,6 +146,9 @@ def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_sto
         last_cross = get_last_cross()
         stock_trade = False
         trend = str(get_trend(trading_symbol)).replace("'","")
+        print(f'{now_today}:last_cross:{last_cross}')
+        print(f'{now_today}:cross:{cross}')
+        print(f'{now_today}:trend:{trend}')
         
         if last_cross == 'down' and cross == 'up' and trend == 'up':
             print(f'{now_today}:LONG')
@@ -163,7 +166,7 @@ def sma_cross_strategy(fast_sma,slow_sma,trading_symbol,close_price,trailing_sto
             take_profit_var = round(buy_price-(buy_price * 0.01),3) #1%
             stop_loss_var = round(buy_price+(buy_price * 0.015),3) #-1.5%
             quantity = get_quantity(close_price)
-            place_order(trading_symbol,"Buy",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit,stock_trade)
+            place_order(trading_symbol,"Sell",quantity,buy_price,take_profit_var,stop_loss_var,trailing_stop_take_profit,stock_trade)
 
         insert_log(trading_symbol,close_price,fast_sma,slow_sma,cross,last_cross,buy_sell,buy_price,sell_price,0,0,0,0,0)
 
@@ -365,6 +368,7 @@ def trailing_stop_loss(trading_symbol,close_price,fast_sma,slow_sma):
     print(f'{now_today}:Open Position Trailing Stop')
     order_id = get_last_order(trading_symbol)[0]
     print(f'{now_today}:order_id:{order_id}')
+    print(f'{now_today}:close_price:{close_price}')
 
     bought_price = get_last_order(trading_symbol)[1]
     print(f'{now_today}:bought_price:{bought_price}')
